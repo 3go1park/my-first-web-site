@@ -74,10 +74,8 @@
 
         const del = el.querySelector('#delete-book');
         if (del) {
-            del.addEventListener('click', () => {
-                const count = store.entriesOf(book.id).length;
-                const note = count ? `\n이 책의 독서 일지 ${count}개는 지우지 않고 남겨 둬요.` : '';
-                if (!confirm(`'${book.title}'을(를) 지울까요? 읽기 기록도 함께 지워져요.${note}`)) return;
+            del.addEventListener('click', async () => {
+                if (!(await App.ui.confirmBookDelete([book.id]))) return;
                 store.deleteBook(book.id);
                 App.ui.toast(`'${book.title}'을(를) 지웠어요.`, { next: true });
                 App.router.go('/books');
