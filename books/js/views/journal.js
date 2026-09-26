@@ -17,9 +17,13 @@ App.route('/journal', {
                     <label class="field"><span>책</span><select name="book"></select></label>
                     <label class="field"><span>여기까지 읽음 (쪽)</span><input name="page" type="text" inputmode="numeric" placeholder="예: 58"></label>
                 </div>
-                <label class="field"><span>읽은 내용 *</span>
-                    <textarea name="content" rows="4" placeholder="읽은 부분, 기억에 남는 문장, 느낀 점을 적어 보세요."></textarea>
-                </label>
+                <div class="field">
+                    <div class="field-head">
+                        <label for="journal-content">읽은 내용 *</label>
+                        <button id="scan" class="btn btn-small btn-outline" type="button">${App.ui.icon('camera')} 책 스캔</button>
+                    </div>
+                    <textarea id="journal-content" name="content" rows="4" placeholder="읽은 부분, 기억에 남는 문장, 느낀 점을 적어 보세요. 책 스캔으로 페이지를 찍어 글자를 넣을 수도 있어요."></textarea>
+                </div>
                 <p id="message" class="message error" hidden></p>
                 <div class="form-actions">
                     <button id="submit" class="btn btn-primary" type="submit">등록하기</button>
@@ -186,6 +190,16 @@ App.route('/journal', {
                 renderList();
                 App.ui.toast('일지를 지웠어요.');
             }
+        });
+
+        // 책 스캔: 찍은 페이지의 글자를 읽어 "읽은 내용"에 넣는다 (이미 쓴 글 뒤에 이어서)
+        el.querySelector('#scan').addEventListener('click', async () => {
+            const text = await App.scan.open();
+            if (!text) return;
+            const area = form.elements.content;
+            area.value = area.value.trim() ? `${area.value.trim()}\n\n${text}` : text;
+            area.focus();
+            App.ui.toast('스캔한 글을 넣었어요. 저장하려면 등록하기를 눌러 주세요.');
         });
 
         filterSelect.addEventListener('change', () => {

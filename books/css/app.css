@@ -267,6 +267,30 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
     font-size: 13px; font-weight: 700; vertical-align: middle;
 }
 
+/* 책 스캔 */
+.field-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.field-head .btn .icon, .scan-pick-button .icon { stroke: currentColor; }
+.scan-dialog { width: min(860px, calc(100% - 32px)); }
+.scan-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.scan-step { display: flex; flex-direction: column; gap: 14px; }
+.scan-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.scan-pick-button {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    min-height: 160px; border: 2px dashed var(--muted); border-radius: 20px;
+    font-size: 20px; font-weight: 700; color: var(--ink); cursor: pointer;
+}
+.scan-pick-button input { display: none; }
+.scan-pick-button .icon { width: 48px; height: 48px; color: var(--accent); }
+.scan-stage { position: relative; align-self: center; touch-action: none; user-select: none; -webkit-user-select: none; }
+.scan-stage img { display: block; max-width: 100%; max-height: 55vh; border-radius: 12px; }
+.scan-box { position: absolute; border: 3px solid var(--accent); background: rgba(181, 84, 44, 0.15); border-radius: 6px; pointer-events: none; }
+.scan-progress-step { font-size: 18px; font-weight: 700; }
+.scan-dialog textarea {
+    width: 100%; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px;
+    background: var(--bg); color: var(--ink); font-size: 18px; line-height: 1.6; font-family: inherit; resize: vertical;
+}
+.hint.small { font-size: 15px; }
+
 /* 선택 삭제 */
 .select-bar {
     position: sticky; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 5;
