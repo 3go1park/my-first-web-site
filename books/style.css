@@ -134,6 +134,10 @@ h1 .accent {
     font-size: 22px;
     font-weight: 700;
     font-family: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
 }
 
@@ -295,4 +299,112 @@ th {
     position: sticky;
     top: 0;
     background: var(--bg);
+}
+
+/* 책 목록 화면 (목록형) */
+.book-count {
+    font-size: 24px;
+    color: var(--accent);
+    margin-left: 8px;
+}
+
+.book-list {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    overflow: hidden;
+}
+
+.book-list ol {
+    list-style: none;
+}
+
+/* 가로 모드: 번호 | 제목(+한줄소개) | 저자 | 장르 | 국가 | 출간 */
+.book-row {
+    display: grid;
+    grid-template-columns: 56px 1fr 180px 90px 90px 70px;
+    gap: 16px;
+    align-items: center;
+    min-height: 72px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--line);
+    font-size: 18px;
+}
+
+.book-list li:last-child {
+    border-bottom: none;
+}
+
+.book-row-head {
+    min-height: 52px;
+    background: var(--bg);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.col-no {
+    font-weight: 800;
+    color: var(--accent);
+}
+
+.col-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.col-title strong,
+.col-title small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.col-title strong {
+    font-size: 19px;
+}
+
+.col-summary,
+.col-author-inline {
+    font-size: 15px;
+    color: var(--muted);
+}
+
+.col-author-inline {
+    display: none;
+}
+
+.col-author,
+.col-genre,
+.col-country,
+.col-year {
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 세로 모드처럼 폭이 좁을 때: 저자를 제목 아래로 옮기고 국가/출간 칸은 숨김 */
+@media (max-width: 999px) {
+    .book-row {
+        grid-template-columns: 44px 1fr 80px;
+        padding: 14px 20px;
+    }
+
+    .col-author,
+    .col-country,
+    .col-year {
+        display: none;
+    }
+
+    .col-author-inline {
+        display: block;
+        color: var(--ink);
+    }
+}
+
+.page-wide {
+    max-width: 1200px;
 }

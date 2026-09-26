@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2b2118">
+    <title>책 목록 - 책 100권</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="page page-wide">
+        <a class="back-link" href="index.html">← 홈으로</a>
+
+        <header class="page-header">
+            <p class="eyebrow">BOOK LIST</p>
+            <h2>책 목록 <span id="book-count" class="book-count"></span></h2>
+        </header>
+
+        <section id="empty" class="card" hidden>
+            <p class="hint">아직 저장된 책 목록이 없어요. 먼저 책 목록을 업로드해 주세요.</p>
+            <a class="secondary-button" href="upload.html">책 목록 업로드</a>
+        </section>
+
+        <section id="book-list" class="book-list" hidden>
+            <div class="book-row book-row-head">
+                <span>번호</span>
+                <span>제목</span>
+                <span class="col-author">저자</span>
+                <span>장르</span>
+                <span class="col-country">국가</span>
+                <span class="col-year">출간</span>
+            </div>
+            <ol id="book-rows"></ol>
+        </section>
+    </main>
+    <script src="list.js"></script>
+    <script src="register-sw.js"></script>
+</body>
+</html>
