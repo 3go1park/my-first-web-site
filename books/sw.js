@@ -1,5 +1,8 @@
 // 네트워크를 먼저 쓰고, 인터넷이 없을 때만 저장해 둔 파일로 화면을 연다.
-const CACHE = 'books100-v5';
+// 브라우저 캐시(GitHub Pages는 10분)에 남은 옛 파일이 새 파일과 섞이지 않도록
+// 매번 서버에 최신인지 확인한다(cache: 'no-cache').
+// 새 버전을 올릴 때는 이 CACHE 번호와 HTML의 ?v= 번호를 함께 올린다.
+const CACHE = 'books100-v6';
 const FILES = [
     './',
     'index.html',
@@ -27,7 +30,8 @@ const FILES = [
 ];
 
 self.addEventListener('install', event => {
-    event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
+    event.waitUntil(caches.open(CACHE).then(cache =>
+        cache.addAll(FILES.map(file => new Request(file, { cache: 'reload' })))));
     self.skipWaiting();
 });
 
@@ -43,10 +47,12 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     if (event.request.method !== 'GET') return;
     event.respondWith(
-        fetch(event.request)
+        fetch(event.request, { cache: 'no-cache' })
             .then(response => {
-                const copy = response.clone();
-                caches.open(CACHE).then(cache => cache.put(event.request, copy));
+                if (response.ok) {
+                    const copy = response.clone();
+                    caches.open(CACHE).then(cache => cache.put(event.request, copy));
+                }
                 return response;
             })
             .catch(() => caches.match(event.request, { ignoreSearch: true }))
