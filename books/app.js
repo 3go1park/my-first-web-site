@@ -20,3 +20,16 @@ stats.innerHTML = ['reading', 'late', 'done'].map(status => `
         <b>${counts[status]}</b>
         <span>${STATUS_LABELS[status]}</span>
     </a>`).join('');
+
+// 백업 알림: 기록이 있는데 백업한 적이 없거나 7일이 지났으면 눈에 띄게 표시한다
+const BACKUP_REMIND_DAYS = 7;
+const last = localStorage.getItem(LAST_BACKUP_KEY);
+const note = document.getElementById('backup-note');
+const needsBackup = books.length > 0 && (!last || daysSince(last) >= BACKUP_REMIND_DAYS);
+
+note.textContent = last
+    ? `마지막 백업 ${daysSince(last) === 0 ? '오늘' : daysSince(last) + '일 전'}`
+    : '백업한 적 없음';
+document.getElementById('backup-tile').classList.toggle('needs-backup', needsBackup);
+
+showFlash(document.getElementById('flash'));

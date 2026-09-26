@@ -630,3 +630,50 @@ a.reading-row:active {
         display: none;
     }
 }
+
+/* 홈 가로 화면: 책 목록 | 관리 를 한 줄에, 책 읽기는 아래 줄 전체 */
+.home-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+@media (min-width: 1000px) {
+    .home-groups {
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        gap: 28px 32px;
+    }
+
+    .menu-group-wide {
+        grid-column: 1 / -1;
+    }
+}
+
+/* 관리: 백업 */
+.tile-note {
+    margin-top: -6px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.menu-tile.needs-backup {
+    border: 2px solid #8a2c10;
+}
+
+.menu-tile.needs-backup .tile-note {
+    color: #8a2c10;
+}
+
+.secondary-button:disabled,
+.start-button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+button.secondary-button {
+    background: none;
+    font-family: inherit;
+    cursor: pointer;
+}
