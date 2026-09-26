@@ -2,66 +2,10 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#2b2118">
-    <title>책 등록 - 책읽는 삶의 재미</title>
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="style.css?v=7">
+    <title>책읽는 삶의 재미</title>
+    <!-- 예전 주소: 한 화면 앱의 같은 화면으로 옮겨 준다 -->
+    <script>location.replace('index.html#/books/new');</script>
+    <meta http-equiv="refresh" content="0; url=index.html#/books/new">
 </head>
-<body>
-    <main class="page page-wide">
-        <a class="back-link" href="index.html">← 홈으로</a>
-
-        <header class="page-header">
-            <p class="eyebrow">책 목록</p>
-            <h2>책 등록</h2>
-            <p class="lead">책 정보를 입력하고 등록하면 책 목록 맨 아래에 추가돼요. <strong>*</strong> 표시는 꼭 입력해 주세요.</p>
-        </header>
-
-        <form id="register-form" class="card" novalidate>
-            <div class="form-grid">
-                <label class="field">
-                    <span>제목 *</span>
-                    <input name="title" type="text" autocomplete="off" required>
-                </label>
-                <label class="field">
-                    <span>저자 *</span>
-                    <input name="author" type="text" autocomplete="off" required>
-                </label>
-                <label class="field">
-                    <span>원제</span>
-                    <input name="originalTitle" type="text" autocomplete="off">
-                </label>
-                <label class="field">
-                    <span>출판사</span>
-                    <input name="publisher" type="text" autocomplete="off">
-                </label>
-                <label class="field">
-                    <span>출간연도</span>
-                    <input name="year" type="text" inputmode="numeric" autocomplete="off" placeholder="예: 1919">
-                </label>
-                <label class="field">
-                    <span>장르</span>
-                    <input name="genre" type="text" list="genre-options" autocomplete="off" placeholder="예: 소설">
-                </label>
-                <label class="field">
-                    <span>국가</span>
-                    <input name="country" type="text" list="country-options" autocomplete="off" placeholder="예: 한국">
-                </label>
-                <label class="field field-wide">
-                    <span>한줄소개</span>
-                    <textarea name="summary" rows="1"></textarea>
-                </label>
-            </div>
-            <datalist id="genre-options"></datalist>
-            <datalist id="country-options"></datalist>
-            <p id="message" class="message error" hidden></p>
-            <button class="start-button" type="submit">등록하기</button>
-        </form>
-    </main>
-    <script src="common.js?v=7"></script>
-    <script src="register.js?v=7"></script>
-    <script src="register-sw.js?v=7"></script>
-</body>
+<body></body>
 </html>

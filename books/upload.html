@@ -2,44 +2,10 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#2b2118">
-    <title>책 목록 업로드 - 책읽는 삶의 재미</title>
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="style.css?v=7">
+    <title>책읽는 삶의 재미</title>
+    <!-- 예전 주소: 한 화면 앱의 같은 화면으로 옮겨 준다 -->
+    <script>location.replace('index.html#/books/upload');</script>
+    <meta http-equiv="refresh" content="0; url=index.html#/books/upload">
 </head>
-<body>
-    <main class="page page-wide">
-        <a class="back-link" href="index.html">← 홈으로</a>
-
-        <header class="page-header">
-            <p class="eyebrow">책 목록</p>
-            <h2>책 목록 업로드</h2>
-            <p class="lead">CSV 파일을 고르면 바로 저장하고 책 목록을 보여 드려요.</p>
-        </header>
-
-        <div class="two-columns">
-            <section class="card">
-                <h3>파일 올리기</h3>
-                <label class="file-drop">
-                    <input id="file-input" type="file" accept=".csv,text/csv">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-                    <span>여기를 눌러 CSV 파일을 선택하세요</span>
-                </label>
-                <p id="message" class="message" hidden></p>
-            </section>
-
-            <section class="card">
-                <h3>양식 파일</h3>
-                <p class="hint">첫 줄의 항목 이름은 그대로 두고, 둘째 줄부터 책을 한 줄에 한 권씩 채워 주세요.</p>
-                <p class="hint">항목: 번호, 제목, 원제, 저자, 출판사, 출간연도, 장르, 국가, 한줄소개<br>(제목과 저자는 꼭 필요해요)</p>
-                <a class="secondary-button" href="books-template.csv" download="책목록-양식.csv">양식 파일 받기</a>
-            </section>
-        </div>
-    </main>
-    <script src="common.js?v=7"></script>
-    <script src="upload.js?v=7"></script>
-    <script src="register-sw.js?v=7"></script>
-</body>
+<body></body>
 </html>

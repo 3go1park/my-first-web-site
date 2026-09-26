@@ -2,62 +2,10 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#2b2118">
-    <title>독서 일지 - 책읽는 삶의 재미</title>
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="style.css?v=7">
+    <title>책읽는 삶의 재미</title>
+    <!-- 예전 주소: 한 화면 앱의 같은 화면으로 옮겨 준다 -->
+    <script>location.replace('index.html#/journal');</script>
+    <meta http-equiv="refresh" content="0; url=index.html#/journal">
 </head>
-<body>
-    <main class="page page-wide">
-        <a class="back-link" href="index.html">← 홈으로</a>
-
-        <header class="page-header">
-            <p class="eyebrow">책 읽기</p>
-            <h2>독서 일지</h2>
-            <p class="lead">날짜를 고르고 그날 읽은 내용을 적어 두세요.</p>
-        </header>
-
-        <p id="flash" class="message success" hidden></p>
-
-        <form id="journal-form" class="card" novalidate>
-            <h3 id="form-title">오늘 읽은 내용</h3>
-            <div class="journal-fields">
-                <label class="field">
-                    <span>일자 *</span>
-                    <input name="date" type="date" required>
-                </label>
-                <label class="field">
-                    <span>책</span>
-                    <select name="book" id="book-select"></select>
-                </label>
-            </div>
-            <label class="field">
-                <span>읽은 내용 *</span>
-                <textarea name="content" rows="4" placeholder="읽은 부분, 기억에 남는 문장, 느낀 점을 적어 보세요."></textarea>
-            </label>
-            <p id="message" class="message error" hidden></p>
-            <div class="form-actions">
-                <button id="submit-button" class="start-button" type="submit">등록하기</button>
-                <button id="cancel-edit" class="secondary-button" type="button" hidden>수정 취소</button>
-            </div>
-        </form>
-
-        <section class="journal-section">
-            <div class="journal-header">
-                <h3>일지 목록 <span id="journal-count" class="book-count"></span></h3>
-                <label class="filter-select">
-                    <span>책</span>
-                    <select id="journal-filter"></select>
-                </label>
-            </div>
-            <ol id="journal-list" class="journal-list"></ol>
-            <p id="journal-empty" class="card hint" hidden>아직 적은 일지가 없어요.</p>
-        </section>
-    </main>
-    <script src="common.js?v=7"></script>
-    <script src="journal.js?v=7"></script>
-    <script src="register-sw.js?v=7"></script>
-</body>
+<body></body>
 </html>

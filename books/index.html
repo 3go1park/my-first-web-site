@@ -8,67 +8,36 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="css/app.css?v=10">
 </head>
 <body>
-    <main class="home">
-        <header class="home-header">
-            <p class="eyebrow">MY READING LIFE</p>
-            <h1>책읽는 삶의 재미</h1>
-            <p id="book-summary" class="lead"></p>
-        </header>
+    <header class="topbar">
+        <a id="topbar-back" class="topbar-button" href="#/" aria-label="뒤로" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        </a>
+        <h1 id="topbar-title" class="topbar-title">책읽는 삶의 재미</h1>
+        <a id="topbar-home" class="topbar-button" href="#/" aria-label="홈으로" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg>
+        </a>
+    </header>
 
-        <p id="flash" class="message success" hidden></p>
+    <main id="view" class="page"></main>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-        <div class="home-groups">
-            <section class="menu-group">
-                <h2 class="group-title">책 목록</h2>
-                <div class="menu-grid">
-                    <a class="menu-tile" href="list.html">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
-                        <span>목록 보기</span>
-                    </a>
-                    <a class="menu-tile" href="upload.html">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-                        <span>책 목록 업로드</span>
-                    </a>
-                    <a class="menu-tile" href="register.html">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                        <span>책 등록</span>
-                    </a>
-                </div>
-            </section>
-
-            <section class="menu-group">
-                <h2 class="group-title">관리</h2>
-                <div class="menu-grid">
-                    <a id="backup-tile" class="menu-tile" href="backup.html">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1ZM8 4v5h7V4M8 20v-6h8v6"/></svg>
-                        <span>백업 · 복원</span>
-                        <small id="backup-note" class="tile-note"></small>
-                    </a>
-                </div>
-            </section>
-
-            <section class="menu-group menu-group-wide">
-                <h2 class="group-title">책 읽기</h2>
-                <div class="menu-grid">
-                    <a class="menu-tile" href="reading.html">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5a1 1 0 0 1 1-1h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H3a1 1 0 0 1-1-1ZM22 5a1 1 0 0 0-1-1h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7a1 1 0 0 0 1-1Z"/></svg>
-                        <span>책 읽기 등록</span>
-                    </a>
-                    <a class="menu-tile" href="journal.html">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2ZM8 14h8M8 17.5h5"/></svg>
-                        <span>독서 일지</span>
-                        <small id="journal-note" class="tile-note"></small>
-                    </a>
-                    <div id="reading-stats" class="stat-tiles"></div>
-                </div>
-            </section>
-        </div>
-    </main>
-    <script src="common.js?v=7"></script>
-    <script src="app.js?v=7"></script>
-    <script src="register-sw.js?v=7"></script>
+    <!-- 순서 중요: core → views → app. 새 화면은 views 에 파일을 만들고 여기에 한 줄 추가 -->
+    <script src="js/core/util.js?v=10"></script>
+    <script src="js/core/store.js?v=10"></script>
+    <script src="js/core/insights.js?v=10"></script>
+    <script src="js/core/ui.js?v=10"></script>
+    <script src="js/core/router.js?v=10"></script>
+    <script src="js/views/home.js?v=10"></script>
+    <script src="js/views/books.js?v=10"></script>
+    <script src="js/views/book-form.js?v=10"></script>
+    <script src="js/views/upload.js?v=10"></script>
+    <script src="js/views/reading.js?v=10"></script>
+    <script src="js/views/journal.js?v=10"></script>
+    <script src="js/views/stats.js?v=10"></script>
+    <script src="js/views/backup.js?v=10"></script>
+    <script src="js/app.js?v=10"></script>
 </body>
 </html>

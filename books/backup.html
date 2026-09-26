@@ -2,49 +2,10 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#2b2118">
-    <title>백업 · 복원 - 책읽는 삶의 재미</title>
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="style.css?v=7">
+    <title>책읽는 삶의 재미</title>
+    <!-- 예전 주소: 한 화면 앱의 같은 화면으로 옮겨 준다 -->
+    <script>location.replace('index.html#/backup');</script>
+    <meta http-equiv="refresh" content="0; url=index.html#/backup">
 </head>
-<body>
-    <main class="page page-wide">
-        <a class="back-link" href="index.html">← 홈으로</a>
-
-        <header class="page-header">
-            <p class="eyebrow">관리</p>
-            <h2>백업 · 복원</h2>
-            <p class="lead">책 목록, 읽기 기록, 독서 일지는 이 탭 안에만 저장돼요. 앱을 지우거나 브라우저 데이터를 삭제하면 사라지니, 백업 파일을 만들어 안전한 곳에 보관하세요.</p>
-        </header>
-
-        <p id="flash" class="message success" hidden></p>
-
-        <div class="two-columns">
-            <section class="card">
-                <h3>백업하기</h3>
-                <p id="backup-summary" class="hint"></p>
-                <p id="last-backup" class="hint"></p>
-                <button id="download-button" class="start-button" type="button">백업 파일 저장</button>
-                <button id="share-button" class="secondary-button" type="button" hidden>드라이브·메일 등으로 보내기</button>
-                <p class="hint">저장한 파일은 탭의 "내 파일 → 다운로드" 폴더에 있어요. 구글 드라이브 같은 곳에 한 부 더 보관하면 탭을 바꿔도 복원할 수 있어요.</p>
-            </section>
-
-            <section class="card">
-                <h3>복원하기</h3>
-                <p class="hint">백업 파일(.json)을 고르면 지금의 책 목록, 읽기 기록, 독서 일지가 <strong>백업 파일 내용으로 바뀌어요</strong>.</p>
-                <label class="file-drop">
-                    <input id="restore-input" type="file" accept=".json,application/json">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-                    <span>여기를 눌러 백업 파일을 선택하세요</span>
-                </label>
-                <p id="message" class="message error" hidden></p>
-            </section>
-        </div>
-    </main>
-    <script src="common.js?v=7"></script>
-    <script src="backup.js?v=7"></script>
-    <script src="register-sw.js?v=7"></script>
-</body>
+<body></body>
 </html>
