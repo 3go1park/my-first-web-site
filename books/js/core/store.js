@@ -215,19 +215,29 @@ App.store = (() => {
     }
 
     // 책을 지우면 읽기 기록도 지운다. 독서 일지는 글을 잃지 않도록 책 제목만 남기고 둔다.
-    function deleteBook(id) {
+    // 여러 권을 한 번에 지운다 (저장은 한 번). 읽기 기록도 지우고, 독서 일지는 글을 잃지 않도록 책 제목만 남긴다.
+    function deleteBooks(ids) {
         sync();
-        const b = book(id);
-        data.books = data.books.filter(x => x.id !== id);
-        delete data.reading[id];
-        data.deleted.books[id] = Date.now();
+        const now = Date.now();
+        const gone = new Map();
+        ids.forEach(id => { const b = book(id); if (b) gone.set(id, b); });
+        data.books = data.books.filter(x => !gone.has(x.id));
+        gone.forEach((b, id) => {
+            delete data.reading[id];
+            data.deleted.books[id] = now;
+        });
         data.journal.forEach(e => {
-            if (e.bookId === id) {
+            if (gone.has(e.bookId)) {
+                e.bookTitle = gone.get(e.bookId).title;
                 e.bookId = '';
-                e.bookTitle = b ? b.title : e.bookTitle;
             }
         });
         save();
+        return gone.size;
+    }
+
+    function deleteBook(id) {
+        return deleteBooks([id]);
     }
 
     // 한 칸의 값을 저장할 모양으로 다듬는다 (쪽수는 숫자만)
@@ -612,7 +622,7 @@ App.store = (() => {
 
     return {
         STATUS, books, book, record, journal, settings, statusOf, lastPage, progressOf,
-        entriesOf, bookTitleOf, nextNumber, findSame, addBook, updateBook, deleteBook,
+        entriesOf, bookTitleOf, nextNumber, findSame, addBook, updateBook, deleteBook, deleteBooks,
         planImport, applyImport, setRecord, clearRecord, moveRecords, addEntry, updateEntry, deleteEntry,
         exportData, markBackedUp, parseBackup, restore, previewMerge, applyMerge, sync
     };

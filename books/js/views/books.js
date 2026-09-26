@@ -38,6 +38,7 @@ App.route('/books', {
                     ${Object.entries(store.STATUS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
                 </select>
                 <span id="count" class="toolbar-count"></span>
+                <button id="select-mode" class="btn btn-small btn-outline" type="button">선택 삭제</button>
                 <a class="btn btn-small" href="#/books/new">+ 책 등록</a>
             </div>
             <section class="table-card">
@@ -46,7 +47,13 @@ App.route('/books', {
                 </div>
                 <ol id="rows"></ol>
                 <p id="no-match" class="hint no-match" hidden>찾는 책이 없어요.</p>
-            </section>`;
+            </section>
+            <div id="select-bar" class="select-bar" hidden>
+                <span id="select-count" class="select-count">0권 선택</span>
+                <button id="select-all" class="btn btn-small btn-outline" type="button">보이는 책 모두 선택</button>
+                <button id="select-cancel" class="btn btn-small btn-outline" type="button">취소</button>
+                <button id="select-delete" class="btn btn-small btn-danger" type="button" disabled>삭제</button>
+            </div>`;
 
         const search = el.querySelector('#search');
         const genreSelect = el.querySelector('#genre');
@@ -54,15 +61,35 @@ App.route('/books', {
         genreSelect.value = genres.includes(filter.genre) ? filter.genre : 'all';
         statusSelect.value = filter.status in store.STATUS ? filter.status : 'all';
 
+        // 선택 삭제 모드: 줄을 누르면 상세로 가지 않고 선택한다
+        let selecting = false;
+        const selected = new Set();
+        let shownIds = [];
+
+        function renderSelectBar() {
+            el.querySelector('#select-bar').hidden = !selecting;
+            el.querySelector('#select-mode').hidden = selecting;
+            el.querySelector('.table-card').classList.toggle('is-selecting', selecting);
+            el.querySelector('#select-count').textContent = `${selected.size}권 선택`;
+            const del = el.querySelector('#select-delete');
+            del.disabled = selected.size === 0;
+            del.textContent = selected.size ? `${selected.size}권 삭제` : '삭제';
+            const allShown = shownIds.length > 0 && shownIds.every(id => selected.has(id));
+            el.querySelector('#select-all').textContent = allShown ? '보이는 책 선택 해제' : '보이는 책 모두 선택';
+        }
+
         function renderRows() {
             const text = search.value.trim().toLowerCase();
             const shown = books.filter(b =>
                 (genreSelect.value === 'all' || b.genre === genreSelect.value)
                 && (statusSelect.value === 'all' || store.statusOf(b.id) === statusSelect.value)
                 && (!text || [b.title, b.originalTitle, b.author, b.publisher].some(v => (v || '').toLowerCase().includes(text))));
+            shownIds = shown.map(b => b.id);
             el.querySelector('#rows').innerHTML = shown.map(b => `
-                <li><a class="book-row" href="#/book/${b.id}" data-id="${b.id}">
-                    <span class="col-no">${escapeHtml(b.no)}</span>
+                <li><a class="book-row${selected.has(b.id) ? ' is-selected' : ''}" href="#/book/${b.id}" data-id="${b.id}">
+                    <span class="col-no">${selecting
+                        ? `<span class="check-box" aria-label="${selected.has(b.id) ? '선택됨' : '선택 안 됨'}">${selected.has(b.id) ? '✓' : ''}</span>`
+                        : escapeHtml(b.no)}</span>
                     <span class="col-title">
                         <strong>${escapeHtml(b.title)}</strong>
                         <small class="col-author-inline">${escapeHtml(b.author)}</small>
@@ -75,7 +102,51 @@ App.route('/books', {
             el.querySelector('#count').textContent = `${shown.length}권`;
             el.querySelector('#no-match').hidden = shown.length > 0;
             sessionStorage.setItem(FILTER_KEY, JSON.stringify({ text: search.value, genre: genreSelect.value, status: statusSelect.value }));
+            if (selecting) renderSelectBar();
         }
+
+        el.querySelector('#rows').addEventListener('click', event => {
+            if (!selecting) return;
+            const row = event.target.closest('[data-id]');
+            if (!row) return;
+            event.preventDefault();
+            const id = row.dataset.id;
+            if (selected.has(id)) selected.delete(id);
+            else selected.add(id);
+            renderRows();
+        });
+
+        el.querySelector('#select-mode').addEventListener('click', () => {
+            selecting = true;
+            selected.clear();
+            renderRows();
+            renderSelectBar();
+        });
+
+        el.querySelector('#select-cancel').addEventListener('click', () => {
+            selecting = false;
+            selected.clear();
+            renderRows();
+            renderSelectBar();
+        });
+
+        el.querySelector('#select-all').addEventListener('click', () => {
+            const allShown = shownIds.every(id => selected.has(id));
+            shownIds.forEach(id => (allShown ? selected.delete(id) : selected.add(id)));
+            renderRows();
+        });
+
+        el.querySelector('#select-delete').addEventListener('click', () => {
+            const ids = [...selected];
+            const records = ids.filter(id => store.record(id)).length;
+            const entries = ids.reduce((n, id) => n + store.entriesOf(id).length, 0);
+            const titles = ids.slice(0, 3).map(id => `'${store.book(id).title}'`).join(', ') + (ids.length > 3 ? ` 외 ${ids.length - 3}권` : '');
+            const notes = [records && `읽기 기록 ${records}개도 함께 지워져요.`, entries && `독서 일지 ${entries}개는 글을 남겨 둬요.`].filter(Boolean).join(' ');
+            if (!confirm(`${titles}\n${ids.length}권을 지울까요? ${notes}`)) return;
+            const count = store.deleteBooks(ids);
+            App.ui.toast(`${count}권을 지웠어요.`, { next: true });
+            App.router.render();
+        });
 
         search.addEventListener('input', renderRows);
         genreSelect.addEventListener('change', renderRows);

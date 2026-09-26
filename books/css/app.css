@@ -247,6 +247,24 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
 .col-author, .col-muted, .col-date { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-date.is-late { color: var(--late-ink); font-weight: 700; }
 
+/* 선택 삭제 */
+.select-bar {
+    position: sticky; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 5;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 16px; border-radius: 999px;
+    background: var(--paper); border: 2px solid var(--ink);
+    box-shadow: 0 8px 24px rgba(43, 33, 24, 0.18);
+}
+.select-count { flex: 1; font-size: 18px; font-weight: 800; padding-left: 8px; }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: var(--paper); }
+.check-box {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border: 2px solid var(--muted); border-radius: 8px;
+    color: var(--paper); font-size: 20px; font-weight: 800;
+}
+.is-selected .check-box { background: var(--accent); border-color: var(--accent); }
+.table-card.is-selecting a.book-row.is-selected { background: var(--accent-soft); }
+
 .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .toolbar-count { font-size: 17px; font-weight: 700; color: var(--accent); }
 
