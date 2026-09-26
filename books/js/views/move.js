@@ -21,7 +21,7 @@ App.route('/book/:id/move', {
                     <p class="eyebrow">옮길 기록</p>
                     <h2 class="detail-title">${escapeHtml(source.no)}. ${escapeHtml(source.title)}</h2>
                     <p>${statusBadge(store.statusOf(source.id))}
-                        ${record ? `<span class="hint">시작 ${formatDate(record.start)}${record.done ? ` · 완료 ${formatDate(record.done)}` : ''}</span>` : ''}</p>
+                        ${record ? `<span class="hint">${[record.start && `시작 ${formatDate(record.start)}`, record.done && `완료 ${formatDate(record.done)}`].filter(Boolean).join(' · ')}</span>` : ''}</p>
                     <label class="check-row"><input type="checkbox" id="move-record" ${record ? 'checked' : 'disabled'}>
                         <span>읽기 기록 ${record ? '(시작일·완료예정일·완료일·별점·감상)' : '없음'}</span></label>
                     <label class="check-row"><input type="checkbox" id="move-journal" ${entries.length ? 'checked' : 'disabled'}>
