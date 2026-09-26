@@ -2,53 +2,10 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#2b2118">
-    <title>읽기 기록 - 책읽는 삶의 재미</title>
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="style.css?v=7">
+    <title>책읽는 삶의 재미</title>
+    <!-- 예전 주소: 한 화면 앱의 같은 화면으로 옮겨 준다 -->
+    <script>location.replace('index.html#/reading');</script>
+    <meta http-equiv="refresh" content="0; url=index.html#/reading">
 </head>
-<body>
-    <main class="page page-wide">
-        <a class="back-link" href="reading.html">← 책 읽기 목록으로</a>
-
-        <section id="not-found" class="card" hidden>
-            <p class="hint">책을 찾지 못했어요. 책 읽기 목록에서 다시 선택해 주세요.</p>
-            <a class="secondary-button" href="reading.html">책 읽기 목록</a>
-        </section>
-
-        <div id="editor" class="two-columns" hidden>
-            <section class="card book-info">
-                <p class="eyebrow">읽기 기록</p>
-                <h2 id="book-title"></h2>
-                <p id="book-meta" class="book-meta"></p>
-                <p id="book-summary" class="hint"></p>
-                <p>현재 상태 <em id="book-status" class="status-badge"></em></p>
-                <a id="journal-link" class="secondary-button" href="journal.html">이 책의 독서 일지</a>
-            </section>
-
-            <form id="reading-form" class="card" novalidate>
-                <label class="field">
-                    <span>시작일 *</span>
-                    <input name="start" type="date" required>
-                </label>
-                <label class="field">
-                    <span>완료예정일</span>
-                    <input name="due" type="date">
-                </label>
-                <label class="field">
-                    <span>완료일</span>
-                    <input name="done" type="date">
-                </label>
-                <p id="message" class="message error" hidden></p>
-                <button class="start-button" type="submit">저장하기</button>
-                <button id="clear-button" class="text-button" type="button" hidden>읽기 기록 지우기</button>
-            </form>
-        </div>
-    </main>
-    <script src="common.js?v=7"></script>
-    <script src="reading-edit.js?v=7"></script>
-    <script src="register-sw.js?v=7"></script>
-</body>
+<body></body>
 </html>
