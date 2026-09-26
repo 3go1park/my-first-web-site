@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2b2118">
+    <title>책 읽기 - 책읽는 삶의 재미</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="page page-wide">
+        <a class="back-link" href="index.html">← 홈으로</a>
+
+        <header class="page-header">
+            <p class="eyebrow">책 읽기</p>
+            <h2>책 읽기 등록</h2>
+            <p class="lead">읽기 시작한 책을 눌러 시작일, 완료예정일, 완료일을 기록하세요.</p>
+        </header>
+
+        <p id="flash" class="message success" hidden></p>
+
+        <section id="empty" class="card" hidden>
+            <p class="hint">아직 등록된 책이 없어요. 먼저 책 목록을 업로드하거나 책을 등록해 주세요.</p>
+            <div class="button-row">
+                <a class="secondary-button" href="upload.html">책 목록 업로드</a>
+                <a class="secondary-button" href="register.html">책 등록</a>
+            </div>
+        </section>
+
+        <div id="filters" class="filter-tabs" role="tablist" hidden></div>
+
+        <section id="reading-list" class="book-list" hidden>
+            <div class="reading-row book-row-head">
+                <span>번호</span>
+                <span>제목</span>
+                <span>상태</span>
+                <span class="col-date">시작일</span>
+                <span class="col-date">완료예정일</span>
+                <span class="col-date">완료일</span>
+            </div>
+            <ol id="reading-rows"></ol>
+            <p id="no-match" class="hint no-match" hidden>이 상태의 책이 없어요.</p>
+        </section>
+    </main>
+    <script src="common.js"></script>
+    <script src="reading.js"></script>
+    <script src="register-sw.js"></script>
+</body>
+</html>
