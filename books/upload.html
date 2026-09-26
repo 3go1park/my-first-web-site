@@ -4,51 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#2b2118">
-    <title>책 목록 업로드 - 책 100권</title>
+    <title>책 목록 업로드 - 책읽는 삶의 재미</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <main class="page">
+    <main class="page page-wide">
         <a class="back-link" href="index.html">← 홈으로</a>
 
         <header class="page-header">
-            <p class="eyebrow">UPLOAD</p>
+            <p class="eyebrow">책 목록</p>
             <h2>책 목록 업로드</h2>
-            <p class="lead">양식에 맞춰 만든 CSV 파일을 올리면 책 목록이 이 기기에 저장돼요.</p>
+            <p class="lead">CSV 파일을 고르면 바로 저장하고 책 목록을 보여 드려요.</p>
         </header>
 
-        <section class="card">
-            <h3>1. 양식 파일 받기</h3>
-            <p class="hint">첫 줄의 항목 이름은 그대로 두고, 둘째 줄부터 책을 한 줄에 한 권씩 채워 주세요. 예시 3권은 지우고 써도 돼요.</p>
-            <p class="hint">항목: 번호, 제목, 원제, 저자, 출판사, 출간연도, 장르, 국가, 한줄소개 (제목과 저자는 꼭 필요해요)</p>
-            <a class="secondary-button" href="books-template.csv" download="책100권-양식.csv">양식 파일 받기 (CSV)</a>
-        </section>
+        <div class="two-columns">
+            <section class="card">
+                <h3>파일 올리기</h3>
+                <label class="file-drop">
+                    <input id="file-input" type="file" accept=".csv,text/csv">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+                    <span>여기를 눌러 CSV 파일을 선택하세요</span>
+                </label>
+                <p id="message" class="message" hidden></p>
+            </section>
 
-        <section class="card">
-            <h3>2. 파일 올리기</h3>
-            <label class="file-drop">
-                <input id="file-input" type="file" accept=".csv,text/csv">
-                <span id="file-name">여기를 눌러 CSV 파일을 선택하세요</span>
-            </label>
-            <p id="message" class="message" hidden></p>
-        </section>
-
-        <section id="preview" class="card" hidden>
-            <h3>3. 확인하고 저장하기</h3>
-            <p id="preview-summary" class="hint"></p>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr><th>번호</th><th>제목</th><th>저자</th><th>출판사</th><th>출간연도</th><th>장르</th><th>국가</th></tr>
-                    </thead>
-                    <tbody id="preview-body"></tbody>
-                </table>
-            </div>
-            <button id="save-button" class="start-button" type="button">이 목록으로 저장하기</button>
-        </section>
+            <section class="card">
+                <h3>양식 파일</h3>
+                <p class="hint">첫 줄의 항목 이름은 그대로 두고, 둘째 줄부터 책을 한 줄에 한 권씩 채워 주세요.</p>
+                <p class="hint">항목: 번호, 제목, 원제, 저자, 출판사, 출간연도, 장르, 국가, 한줄소개<br>(제목과 저자는 꼭 필요해요)</p>
+                <a class="secondary-button" href="books-template.csv" download="책목록-양식.csv">양식 파일 받기</a>
+            </section>
+        </div>
     </main>
+    <script src="common.js"></script>
     <script src="upload.js"></script>
     <script src="register-sw.js"></script>
 </body>
