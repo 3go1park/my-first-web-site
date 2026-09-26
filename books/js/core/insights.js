@@ -102,7 +102,9 @@ App.insights = (() => {
 
     // 시작부터 완료까지 평균 며칠 걸렸는지
     function averageDaysToFinish() {
-        const spans = finished().map(({ record }) => daysBetween(record.start, record.done) + 1).filter(n => n > 0);
+        // 시작일을 모르는 책(예전에 다 읽은 책)은 빼고 계산한다
+        const spans = finished().filter(({ record }) => record.start)
+            .map(({ record }) => daysBetween(record.start, record.done) + 1).filter(n => n > 0);
         if (!spans.length) return null;
         return Math.round(spans.reduce((a, b) => a + b, 0) / spans.length);
     }

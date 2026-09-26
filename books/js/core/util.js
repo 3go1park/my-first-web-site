@@ -60,6 +60,16 @@ App.util = (() => {
         return days > 0 ? `${days}일 전` : `${-days}일 뒤`;
     }
 
+    // "2026.9.26", "2026/09/26", "2026-09-26" → "2026-09-26". 날짜가 아니면 null
+    function normalizeDate(text) {
+        const m = String(text || '').trim().match(/^(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})\.?$/);
+        if (!m) return null;
+        const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+        const date = new Date(y, mo - 1, d);
+        if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== d) return null;
+        return toDateText(date);
+    }
+
     function uid() {
         return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     }
@@ -115,6 +125,6 @@ App.util = (() => {
 
     return {
         escapeHtml, escapeMultiline, today, toDateText, parseDate, addDays, daysBetween,
-        formatDate, formatDay, relativeDay, uid, parseCsv, readFileText
+        formatDate, formatDay, relativeDay, normalizeDate, uid, parseCsv, readFileText
     };
 })();

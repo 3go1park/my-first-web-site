@@ -123,7 +123,7 @@ App.route('/book/:id/reading', {
         let rating = Number(record && record.rating) || 0;
 
         // 처음 기록하는 책은 시작일을 오늘로 채워 둔다
-        form.elements.start.value = (record && record.start) || today();
+        form.elements.start.value = record ? (record.start || '') : today();
         form.elements.due.value = (record && record.due) || '';
         form.elements.done.value = (record && record.done) || '';
         form.elements.done.max = today();
@@ -157,9 +157,9 @@ App.route('/book/:id/reading', {
                 message.hidden = false;
                 form.elements[name].focus();
             };
-            if (!start) return fail('시작일은 꼭 입력해 주세요.', 'start');
-            if (due && due < start) return fail('완료예정일은 시작일보다 빠를 수 없어요.', 'due');
-            if (done && done < start) return fail('완료일은 시작일보다 빠를 수 없어요.', 'done');
+            if (!start && !done) return fail('시작일을 입력해 주세요. (예전에 다 읽은 책은 완료일만 넣어도 돼요)', 'start');
+            if (due && start && due < start) return fail('완료예정일은 시작일보다 빠를 수 없어요.', 'due');
+            if (done && start && done < start) return fail('완료일은 시작일보다 빠를 수 없어요.', 'done');
             if (done && done > today()) return fail('완료일은 오늘 이후로 정할 수 없어요.', 'done');
 
             store.setRecord(book.id, { start, due, done, rating, review: form.elements.review.value.trim() });

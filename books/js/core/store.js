@@ -13,7 +13,7 @@
 // 책·읽기 기록·일지에는 마지막으로 고친 시각(updatedAt)이 붙는다.
 // updatedAt 과 deleted 는 두 기기의 백업을 "합쳐서 복원"할 때 어느 쪽이 최신인지 가리는 데 쓴다.
 App.store = (() => {
-    const { uid, today } = App.util;
+    const { uid, today, normalizeDate } = App.util;
     const KEY = 'readinglife.data';
     const SCHEMA = 2;
     const BOOK_FIELDS = ['no', 'title', 'originalTitle', 'author', 'publisher', 'year', 'genre', 'country', 'pages', 'summary'];
@@ -144,11 +144,13 @@ App.store = (() => {
     const journal = () => data.journal;
     const settings = () => data.settings;
 
-    // 완료일이 있으면 읽기 완료, 완료예정일이 지났으면 읽기 지연, 시작일만 있으면 읽는 중
+    // 완료일이 있으면 읽기 완료(시작일을 모르는 예전에 읽은 책도), 완료예정일이 지났으면 읽기 지연,
+    // 시작일만 있으면 읽는 중
     function statusOf(id) {
         const r = record(id);
-        if (!r || !r.start) return 'none';
+        if (!r) return 'none';
         if (r.done) return 'done';
+        if (!r.start) return 'none';
         if (r.due && r.due < today()) return 'late';
         return 'reading';
     }
@@ -234,17 +236,61 @@ App.store = (() => {
         return field === 'pages' ? text.replace(/[^\d]/g, '') : text;
     }
 
+    // CSV 한 줄의 읽기 기록 칸(시작일·완료예정일·완료일·별점)을 읽는다. 값이 있는 칸만.
+    // 잘못된 값이 있으면 그 책의 읽기 기록은 건너뛰고 problems 에 이유를 남긴다.
+    function recordFromRow(row, current, title, problems) {
+        const next = {};
+        for (const [field, label] of [['start', '시작일'], ['due', '완료예정일'], ['done', '완료일']]) {
+            const raw = String(row[field] || '').trim();
+            if (!raw) continue;
+            const date = normalizeDate(raw);
+            if (!date) {
+                problems.push(`'${title}' ${label} "${raw}"`);
+                return null;
+            }
+            next[field] = date;
+        }
+        const rawRating = String(row.rating || '').trim();
+        if (rawRating) {
+            const rating = Number(rawRating);
+            if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+                problems.push(`'${title}' 별점 "${rawRating}" (1~5)`);
+                return null;
+            }
+            next.rating = rating;
+        }
+        if (!Object.keys(next).length) return null;
+        const merged = { ...(current || {}), ...next };
+        if (merged.done && merged.done > today()) {
+            problems.push(`'${title}' 완료일이 오늘 이후`);
+            return null;
+        }
+        if (merged.start && merged.done && merged.done < merged.start) {
+            problems.push(`'${title}' 완료일이 시작일보다 빠름`);
+            return null;
+        }
+        // 이미 같은 값이면 바꿀 것이 없다
+        const changed = Object.keys(next).some(k => String((current || {})[k] || '') !== String(next[k]));
+        return changed ? next : null;
+    }
+
     // CSV로 읽은 책들을 목록과 비교해 무엇을 할지 정한다. 아직 저장하지 않는다.
     //   add       새로 추가할 책 (번호까지 정해 둠)
     //   update    바뀌는 칸만 담은 기존 책 [{ id, title, fields }]  ← 빈 칸은 기존 값을 그대로 둔다
     //   same      파일과 똑같아 바뀌지 않는 기존 책 수
     //   renumbered 번호가 겹쳐 조정한 책 [{ title, wanted, used, isNew }]
     //   missing   파일에 없는 기존 책
+    //   records / done / recordProblems  읽기 기록을 넣을 책 수 / 그중 읽기 완료 / 건너뛴 기록
     function planImport(rows) {
         const existing = new Map(data.books.map(b => [matchKey(b.title, b.author), b]));
         const owner = new Map(data.books.map(b => [b.no, b.id]));   // 번호 → 그 번호를 쓰는 책
         const seen = new Set();
-        const plan = { add: [], update: [], same: 0, renumbered: [], missing: [] };
+        const plan = { add: [], update: [], same: 0, renumbered: [], missing: [], records: 0, done: 0, recordProblems: [] };
+        const countRecord = rec => {
+            if (!rec) return;
+            plan.records++;
+            if (rec.done) plan.done++;
+        };
         const newRows = [];
 
         rows.forEach(row => {
@@ -271,7 +317,9 @@ App.store = (() => {
                     owner.set(fields.no, same.id);
                 }
             }
-            if (Object.keys(fields).length) plan.update.push({ id: same.id, title: same.title, fields });
+            const rec = recordFromRow(row, data.reading[same.id], same.title, plan.recordProblems);
+            countRecord(rec);
+            if (Object.keys(fields).length || rec) plan.update.push({ id: same.id, title: same.title, fields, record: rec });
             else plan.same++;
         });
 
@@ -288,6 +336,8 @@ App.store = (() => {
                 max = Math.max(max, parseInt(book.no, 10) || 0);
             }
             owner.set(book.no, 'new');
+            book.record = recordFromRow(row, null, book.title, plan.recordProblems);
+            countRecord(book.record);
             plan.add.push(book);
         });
 
@@ -299,11 +349,17 @@ App.store = (() => {
     function applyImport(plan, mode) {
         sync();
         const now = Date.now();
-        plan.update.forEach(({ id, fields }) => {
+        plan.update.forEach(({ id, fields, record: rec }) => {
             const b = book(id);
-            if (b) Object.assign(b, fields, { updatedAt: now });
+            if (!b) return;
+            if (Object.keys(fields).length) Object.assign(b, fields, { updatedAt: now });
+            if (rec) data.reading[id] = { ...(data.reading[id] || {}), ...rec, updatedAt: now };
         });
-        plan.add.forEach(fields => data.books.push({ ...cleanBook({ ...fields, no: fields.no || nextNumber() }, uid()), updatedAt: now }));
+        plan.add.forEach(fields => {
+            const nb = { ...cleanBook({ ...fields, no: fields.no || nextNumber() }, uid()), updatedAt: now };
+            data.books.push(nb);
+            if (fields.record) data.reading[nb.id] = { ...fields.record, updatedAt: now };
+        });
         save();
         if (mode === 'replace') plan.missing.forEach(b => { if (book(b.id)) deleteBook(b.id); });
         sortBooks();
@@ -479,7 +535,7 @@ App.store = (() => {
         const newer = (a, b) => (a.updatedAt && b.updatedAt ? a.updatedAt > b.updatedAt : rank(a) > rank(b));
         Object.entries(incoming.reading).forEach(([iid, ir]) => {
             const id = idMap.get(iid);
-            if (!id || !ir || !ir.start || isDeleted('reading', id, ir)) return;
+            if (!id || !ir || !(ir.start || ir.done) || isDeleted('reading', id, ir)) return;
             const lr = local.reading[id];
             if (!lr) {
                 local.reading[id] = ir;
