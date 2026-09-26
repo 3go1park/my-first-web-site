@@ -318,6 +318,17 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
 .star-input [data-star].is-on { color: #c98a1b; }
 .star-input .star-clear { width: auto; padding: 0 12px; font-size: 16px; font-weight: 700; color: var(--muted); font-family: inherit; text-decoration: underline; }
 
+/* 기록 옮기기 */
+.check-row { display: flex; align-items: center; gap: 12px; min-height: 48px; font-size: 18px; }
+.check-row input { width: 26px; height: 26px; accent-color: var(--accent); }
+.pick-list { list-style: none; max-height: 360px; overflow-y: auto; border: 1px solid var(--line); border-radius: 16px; }
+.pick-row {
+    display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center; width: 100%;
+    min-height: 64px; padding: 10px 16px; border: none; border-bottom: 1px solid var(--line);
+    background: none; color: var(--ink); font-family: inherit; font-size: 17px; text-align: left; cursor: pointer;
+}
+.pick-row.is-picked { background: var(--accent-soft); box-shadow: inset 5px 0 0 var(--accent); }
+
 /* 업로드 */
 .plan-list { list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 18px; }
 .plan-list b { color: var(--accent); font-size: 22px; }

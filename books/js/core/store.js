@@ -275,6 +275,31 @@ App.store = (() => {
         save();
     }
 
+    // 다른 책으로 잘못 기록했을 때: 읽기 기록과 독서 일지를 다른 책으로 옮긴다.
+    // 옮긴 뒤 원래 책은 "읽기 전"이 된다. 다른 기기와 합칠 때도 옮긴 결과가 남도록 시각을 새로 찍는다.
+    function moveRecords(fromId, toId, { record = true, journal = true } = {}) {
+        sync();
+        const now = Date.now();
+        const target = book(toId);
+        const moved = { record: false, entries: 0 };
+        if (!target || fromId === toId) return moved;
+        if (record && data.reading[fromId]) {
+            data.reading[toId] = { ...data.reading[fromId], updatedAt: now };
+            delete data.reading[fromId];
+            data.deleted.reading[fromId] = now;
+            moved.record = true;
+        }
+        if (journal) {
+            data.journal.forEach(e => {
+                if (e.bookId !== fromId) return;
+                Object.assign(e, { bookId: toId, bookTitle: target.title, updatedAt: now });
+                moved.entries++;
+            });
+        }
+        save();
+        return moved;
+    }
+
     // ---- 독서 일지 --------------------------------------------------------
     function addEntry(fields) {
         sync();
@@ -482,7 +507,7 @@ App.store = (() => {
     return {
         STATUS, books, book, record, journal, settings, statusOf, lastPage, progressOf,
         entriesOf, bookTitleOf, nextNumber, findSame, addBook, updateBook, deleteBook,
-        planImport, applyImport, setRecord, clearRecord, addEntry, updateEntry, deleteEntry,
+        planImport, applyImport, setRecord, clearRecord, moveRecords, addEntry, updateEntry, deleteEntry,
         exportData, markBackedUp, parseBackup, restore, previewMerge, applyMerge, sync
     };
 })();
