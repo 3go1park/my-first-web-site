@@ -132,6 +132,7 @@ App.route('/book/:id', {
                     ${record.review ? `<blockquote class="review">${escapeMultiline(record.review)}</blockquote>` : ''}
                     <div class="button-row">
                         <a class="btn" href="#/book/${book.id}/reading">${status === 'none' ? '읽기 시작하기' : '읽기 기록 수정'}</a>
+                        ${store.record(book.id) || entries.length ? `<a class="btn btn-outline" href="#/book/${book.id}/move">다른 책으로 옮기기</a>` : ''}
                     </div>
                 </section>
             </div>
