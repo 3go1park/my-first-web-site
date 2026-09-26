@@ -247,6 +247,26 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
 .col-author, .col-muted, .col-date { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-date.is-late { color: var(--late-ink); font-weight: 700; }
 
+/* 확인 창 */
+.app-dialog {
+    width: min(560px, calc(100% - 32px)); max-height: calc(100% - 48px); margin: auto;
+    padding: 28px 30px; border: none; border-radius: var(--radius);
+    background: var(--paper); color: var(--ink);
+    box-shadow: 0 24px 60px rgba(43, 33, 24, 0.3);
+}
+.app-dialog::backdrop { background: rgba(43, 33, 24, 0.45); }
+.app-dialog h3 { font-size: 22px; line-height: 1.4; word-break: keep-all; }
+.dialog-body { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 22px; font-size: 18px; line-height: 1.6; word-break: keep-all; }
+.dialog-list { padding-left: 22px; font-size: 17px; }
+.dialog-warn { display: flex; flex-direction: column; gap: 8px; padding: 14px 18px; border-radius: 14px; background: var(--late-bg); color: var(--late-ink); }
+.dialog-warn .hint { color: var(--late-ink); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.journal-tag {
+    display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px;
+    background: var(--reading-bg); color: var(--reading-ink);
+    font-size: 13px; font-weight: 700; vertical-align: middle;
+}
+
 /* 선택 삭제 */
 .select-bar {
     position: sticky; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 5;

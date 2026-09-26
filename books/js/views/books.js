@@ -78,6 +78,10 @@ App.route('/books', {
             el.querySelector('#select-all').textContent = allShown ? '보이는 책 선택 해제' : '보이는 책 모두 선택';
         }
 
+        // 책마다 독서 일지 수 (지울 때 알아보기 쉽게 목록에도 표시)
+        const journalCount = new Map();
+        store.journal().forEach(e => { if (e.bookId) journalCount.set(e.bookId, (journalCount.get(e.bookId) || 0) + 1); });
+
         function renderRows() {
             const text = search.value.trim().toLowerCase();
             const shown = books.filter(b =>
@@ -91,7 +95,7 @@ App.route('/books', {
                         ? `<span class="check-box" aria-label="${selected.has(b.id) ? '선택됨' : '선택 안 됨'}">${selected.has(b.id) ? '✓' : ''}</span>`
                         : escapeHtml(b.no)}</span>
                     <span class="col-title">
-                        <strong>${escapeHtml(b.title)}</strong>
+                        <strong>${escapeHtml(b.title)}${journalCount.get(b.id) ? ` <span class="journal-tag">일지 ${journalCount.get(b.id)}개</span>` : ''}</strong>
                         <small class="col-author-inline">${escapeHtml(b.author)}</small>
                         <small>${escapeHtml(b.summary)}</small>
                     </span>
@@ -136,13 +140,9 @@ App.route('/books', {
             renderRows();
         });
 
-        el.querySelector('#select-delete').addEventListener('click', () => {
+        el.querySelector('#select-delete').addEventListener('click', async () => {
             const ids = [...selected];
-            const records = ids.filter(id => store.record(id)).length;
-            const entries = ids.reduce((n, id) => n + store.entriesOf(id).length, 0);
-            const titles = ids.slice(0, 3).map(id => `'${store.book(id).title}'`).join(', ') + (ids.length > 3 ? ` 외 ${ids.length - 3}권` : '');
-            const notes = [records && `읽기 기록 ${records}개도 함께 지워져요.`, entries && `독서 일지 ${entries}개는 글을 남겨 둬요.`].filter(Boolean).join(' ');
-            if (!confirm(`${titles}\n${ids.length}권을 지울까요? ${notes}`)) return;
+            if (!(await App.ui.confirmBookDelete(ids))) return;
             const count = store.deleteBooks(ids);
             App.ui.toast(`${count}권을 지웠어요.`, { next: true });
             App.router.render();

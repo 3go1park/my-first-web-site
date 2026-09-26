@@ -75,6 +75,70 @@ App.ui = (() => {
         return `<span class="stars" aria-label="별점 ${n}점">${'★'.repeat(n)}<span class="stars-off">${'★'.repeat(5 - n)}</span></span>`;
     }
 
+    // 화면에 맞춘 확인 창. 누른 결과를 true/false 로 돌려준다.
+    // bodyHtml 안의 사용자 글자는 부르는 쪽에서 escapeHtml 로 감싼다.
+    function confirmDialog({ title, bodyHtml, confirmText = '확인', danger = false }) {
+        return new Promise(resolve => {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'app-dialog';
+            dialog.innerHTML = `
+                <h3>${escapeHtml(title)}</h3>
+                <div class="dialog-body">${bodyHtml}</div>
+                <div class="dialog-actions">
+                    <button type="button" class="btn btn-outline" data-answer="no">취소</button>
+                    <button type="button" class="btn ${danger ? 'btn-danger' : ''}" data-answer="yes">${escapeHtml(confirmText)}</button>
+                </div>`;
+            document.body.appendChild(dialog);
+            const finish = answer => {
+                dialog.close();
+                dialog.remove();
+                resolve(answer);
+            };
+            dialog.addEventListener('click', event => {
+                const button = event.target.closest('[data-answer]');
+                if (button) finish(button.dataset.answer === 'yes');
+                else if (event.target === dialog) finish(false);   // 바깥을 누르면 취소
+            });
+            dialog.addEventListener('cancel', event => {             // 뒤로 가기 / Esc
+                event.preventDefault();
+                finish(false);
+            });
+            dialog.showModal();
+            dialog.querySelector('[data-answer="no"]').focus();
+        });
+    }
+
+    // 책을 지우기 전에 묻는다. 독서 일지가 있는 책은 따로 모아 보여 준다.
+    function confirmBookDelete(ids) {
+        const store = App.store;
+        const books = ids.map(id => store.book(id)).filter(Boolean);
+        const withJournal = books.map(b => ({ book: b, count: store.entriesOf(b.id).length })).filter(x => x.count);
+        const records = books.filter(b => store.record(b.id)).length;
+        const entryTotal = withJournal.reduce((n, x) => n + x.count, 0);
+        const names = list => list.map(b => `<li>${escapeHtml(b.no)}. ${escapeHtml(b.title)}</li>`).join('');
+
+        let bodyHtml = books.length === 1
+            ? `<p><b>'${escapeHtml(books[0].title)}'</b>을(를) 지울까요?</p>`
+            : `<p><b>${books.length}권</b>을 지울까요?</p><ul class="dialog-list">${names(books.slice(0, 5))}${books.length > 5 ? `<li class="hint">외 ${books.length - 5}권</li>` : ''}</ul>`;
+        if (withJournal.length) {
+            bodyHtml += `
+                <div class="dialog-warn">
+                    <p><b>⚠️ 독서 일지가 있는 책 ${withJournal.length}권</b> (일지 ${entryTotal}개)</p>
+                    <ul class="dialog-list">${withJournal.map(x => `<li>${escapeHtml(x.book.title)} — <b>일지 ${x.count}개</b></li>`).join('')}</ul>
+                    <p class="hint">일지 글은 지우지 않고 남겨 둬요. 독서 일지에서 "책 없이 쓴 일지"로 볼 수 있어요.</p>
+                </div>`;
+        }
+        if (records) bodyHtml += `<p class="hint">읽기 기록 ${records}개도 함께 지워져요. 지운 책은 되돌릴 수 없어요.</p>`;
+        else bodyHtml += '<p class="hint">지운 책은 되돌릴 수 없어요.</p>';
+
+        return confirmDialog({
+            title: withJournal.length ? '독서 일지가 있는 책이에요. 정말 지울까요?' : '책 지우기',
+            bodyHtml,
+            confirmText: books.length === 1 ? '지우기' : `${books.length}권 지우기`,
+            danger: true
+        });
+    }
+
     const ICONS = {
         list: 'M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01',
         upload: 'M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3',
@@ -94,6 +158,6 @@ App.ui = (() => {
 
     return {
         setTopBar, toast, showPendingToast, highlight, consumeHighlight,
-        statusBadge, emptyState, progressBar, stars, icon
+        statusBadge, emptyState, progressBar, stars, icon, confirmDialog, confirmBookDelete
     };
 })();
