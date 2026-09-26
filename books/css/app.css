@@ -282,7 +282,7 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
 .now-card .btn { align-self: flex-start; }
 .now-empty { flex-direction: row; align-items: center; justify-content: space-between; padding: 20px 28px; }
 
-.home-menu { display: grid; grid-template-columns: 3fr 3fr 1fr; gap: 28px; }
+.home-menu { display: grid; grid-template-columns: 3fr 3fr 2fr; gap: 28px; }
 .menu-group { display: flex; flex-direction: column; gap: 14px; }
 .menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; }
 
@@ -330,6 +330,19 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
 .restore-option h4 { font-size: 19px; }
 .recommend { margin-left: 6px; padding: 2px 10px; border-radius: 999px; background: var(--accent); color: var(--paper); font-size: 13px; vertical-align: middle; }
 .tip-list { padding-left: 24px; display: flex; flex-direction: column; gap: 8px; font-size: 17px; line-height: 1.6; }
+
+/* 홈 화면 아이콘 설치 */
+.app-badge { display: flex; align-items: center; gap: 16px; }
+.app-badge img { border-radius: 18px; }
+.app-badge div { display: flex; flex-direction: column; gap: 2px; }
+.app-badge strong { font-size: 24px; }
+.state-line { font-size: 19px; font-weight: 700; }
+.state-line.ok { color: var(--done-ink); }
+.step-list { padding-left: 24px; display: flex; flex-direction: column; gap: 14px; font-size: 17px; line-height: 1.6; word-break: keep-all; }
+.step-list li > .btn, .step-list .url-row { margin-top: 8px; }
+.step-list .warn { display: block; color: var(--danger); font-size: 16px; }
+.url-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.url-row code { padding: 8px 12px; border-radius: 10px; background: var(--bg); font-size: 15px; word-break: break-all; }
 
 /* 독서 일지 */
 .journal-fields { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 18px 24px; }
