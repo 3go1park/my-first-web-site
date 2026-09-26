@@ -1,6 +1,6 @@
 // 백업 · 복원 화면: 책 목록과 읽기 기록을 파일 하나로 저장하고 다시 불러온다.
 const BACKUP_APP = 'books100';
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
 
 const summary = document.getElementById('backup-summary');
 const lastBackup = document.getElementById('last-backup');
@@ -14,7 +14,8 @@ showFlash(document.getElementById('flash'));
 function render() {
     const books = loadBooks();
     const records = Object.keys(loadReading()).length;
-    summary.textContent = `지금 저장된 내용: 책 ${books.length}권, 읽기 기록 ${records}개`;
+    const journal = loadJournal().length;
+    summary.textContent = `지금 저장된 내용: 책 ${books.length}권, 읽기 기록 ${records}개, 독서 일지 ${journal}개`;
 
     const last = localStorage.getItem(LAST_BACKUP_KEY);
     lastBackup.textContent = last
@@ -29,7 +30,8 @@ function makeBackupFile() {
         version: BACKUP_VERSION,
         exportedAt: new Date().toISOString(),
         books: loadBooks(),
-        reading: loadReading()
+        reading: loadReading(),
+        journal: loadJournal()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     return new File([blob], `reading-life-backup-${today()}.json`, { type: 'application/json' });
@@ -90,15 +92,19 @@ restoreInput.addEventListener('change', () => {
         }
 
         const records = Object.keys(data.reading).length;
+        // 독서 일지가 생기기 전(버전 1) 백업에는 일지가 없으므로, 지금 일지는 그대로 둔다
+        const hasJournal = Array.isArray(data.journal);
+        const journalText = hasJournal ? `독서 일지 ${data.journal.length}개` : '독서 일지 없음(지금 일지는 그대로 둬요)';
         const when = data.exportedAt ? formatDate(data.exportedAt.slice(0, 10)) + ' 백업' : '백업 파일';
-        if (!confirm(`${when}: 책 ${data.books.length}권, 읽기 기록 ${records}개\n지금 저장된 내용을 이 백업으로 바꿀까요?`)) {
+        if (!confirm(`${when}: 책 ${data.books.length}권, 읽기 기록 ${records}개, ${journalText}\n지금 저장된 내용을 이 백업으로 바꿀까요?`)) {
             restoreInput.value = '';
             return;
         }
 
         saveBooks(data.books);
         saveReading(data.reading);
-        setFlash(`복원했어요. 책 ${data.books.length}권, 읽기 기록 ${records}개`);
+        if (hasJournal) saveJournal(data.journal);
+        setFlash(`복원했어요. 책 ${data.books.length}권, 읽기 기록 ${records}개` + (hasJournal ? `, 독서 일지 ${data.journal.length}개` : ''));
         location.href = 'index.html';
     };
     reader.onerror = () => showError('파일을 읽지 못했어요. 다시 선택해 주세요.');

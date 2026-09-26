@@ -32,4 +32,9 @@ note.textContent = last
     : '백업한 적 없음';
 document.getElementById('backup-tile').classList.toggle('needs-backup', needsBackup);
 
+// 독서 일지: 오늘 쓴 일지 수
+const todayCount = loadJournal().filter(e => e.date === today()).length;
+document.getElementById('journal-note').textContent =
+    todayCount > 0 ? `오늘 ${todayCount}개 씀` : '오늘은 아직';
+
 showFlash(document.getElementById('flash'));
