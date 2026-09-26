@@ -24,7 +24,9 @@ books/
 │   │   ├── reading.js    #/reading, #/book/:id/reading  읽기 현황, 읽기 기록(별점·감상)
 │   │   ├── journal.js    #/journal             독서 일지 (쪽수, 자동 시작·완독 제안)
 │   │   ├── stats.js      #/stats               통계
-│   │   └── backup.js     #/backup              백업·복원
+│   │   ├── backup.js     #/backup              백업·복원
+│   │   ├── install.js    #/install             홈 화면 아이콘 설치·다시 등록
+│   │   └── move.js       #/book/:id/move       잘못 적은 읽기 기록·일지를 다른 책으로 옮기기
 │   └── app.js            앱 시작, 서비스 워커 등록
 ├── sw.js                 오프라인·업데이트 처리 (번호와 파일 목록은 자동 생성)
 ├── manifest.webmanifest  홈 화면 설치 정보
