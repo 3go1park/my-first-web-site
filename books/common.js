@@ -79,3 +79,14 @@ function readingStatus(record) {
 function formatDate(value) {
     return value ? value.replace(/-/g, '.') : '';
 }
+
+// 마지막으로 백업한 날짜
+const LAST_BACKUP_KEY = 'books100.lastBackup';
+
+function daysSince(dateText) {
+    const [y, m, d] = dateText.split('-').map(Number);
+    const then = new Date(y, m - 1, d);
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((start - then) / 86400000);
+}

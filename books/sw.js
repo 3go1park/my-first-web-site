@@ -1,5 +1,5 @@
 // 네트워크를 먼저 쓰고, 인터넷이 없을 때만 저장해 둔 파일로 화면을 연다.
-const CACHE = 'books100-v4';
+const CACHE = 'books100-v5';
 const FILES = [
     './',
     'index.html',
@@ -8,6 +8,7 @@ const FILES = [
     'register.html',
     'reading.html',
     'reading-edit.html',
+    'backup.html',
     'style.css',
     'common.js',
     'app.js',
@@ -16,6 +17,7 @@ const FILES = [
     'register.js',
     'reading.js',
     'reading-edit.js',
+    'backup.js',
     'register-sw.js',
     'books-template.csv',
     'manifest.webmanifest',
