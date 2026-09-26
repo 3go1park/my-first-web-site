@@ -1,5 +1,4 @@
-// CSV 파일을 읽어 책 목록으로 바꾸고, 이 기기(localStorage)에 저장한다.
-const STORAGE_KEY = 'books100.books';
+// CSV 파일을 읽어 책 목록으로 바꾸고, 저장한 뒤 목록 화면으로 이동한다.
 
 // 한글 항목 이름 → 저장할 때 쓰는 이름
 const COLUMNS = {
@@ -15,14 +14,7 @@ const COLUMNS = {
 };
 
 const fileInput = document.getElementById('file-input');
-const fileName = document.getElementById('file-name');
 const message = document.getElementById('message');
-const preview = document.getElementById('preview');
-const previewSummary = document.getElementById('preview-summary');
-const previewBody = document.getElementById('preview-body');
-const saveButton = document.getElementById('save-button');
-
-let parsedBooks = [];
 
 // 따옴표("...") 안의 쉼표와 줄바꿈도 처리하는 CSV 파서
 function parseCsv(text) {
@@ -91,46 +83,31 @@ function toBooks(rows) {
     return { books, errors };
 }
 
-function showMessage(text, type) {
+function showMessage(text) {
     message.textContent = text;
-    message.className = 'message ' + type;
+    message.className = 'message error';
     message.hidden = false;
 }
 
-function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[ch]));
-}
-
-function showPreview(books, errors) {
-    previewBody.innerHTML = books.map(b => `
-        <tr>
-            <td>${escapeHtml(b.no)}</td>
-            <td>${escapeHtml(b.title)}</td>
-            <td>${escapeHtml(b.author)}</td>
-            <td>${escapeHtml(b.publisher)}</td>
-            <td>${escapeHtml(b.year)}</td>
-            <td>${escapeHtml(b.genre)}</td>
-            <td>${escapeHtml(b.country)}</td>
-        </tr>`).join('');
-
-    let summary = `파일에서 책 ${books.length}권을 찾았어요.`;
-    if (errors.length > 0) {
-        summary += ` 건너뛴 줄 ${errors.length}개: ${errors.join(' / ')}`;
+function saveAndShowList(books, errors) {
+    if (loadBooks().length > 0 && !confirm('이미 등록된 책 목록이 있어요. 새 파일의 목록으로 바꿀까요?')) {
+        fileInput.value = '';
+        return;
     }
-    previewSummary.textContent = summary;
-    preview.hidden = false;
+    saveBooks(books);
+    let text = `${books.length}권을 저장했어요.`;
+    if (errors.length > 0) {
+        text += ` 건너뛴 줄 ${errors.length}개: ${errors.join(' / ')}`;
+    }
+    setFlash(text);
+    location.href = 'list.html';
 }
 
 fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
-    preview.hidden = true;
     message.hidden = true;
-    parsedBooks = [];
     if (!file) return;
 
-    fileName.textContent = file.name;
     const reader = new FileReader();
     reader.onload = () => {
         try {
@@ -142,22 +119,12 @@ fileInput.addEventListener('change', () => {
             if (books.length === 0) {
                 throw new Error('올바른 책 정보가 한 권도 없어요. ' + errors.join(' / '));
             }
-            parsedBooks = books;
-            showPreview(books, errors);
+            saveAndShowList(books, errors);
         } catch (err) {
-            showMessage(err.message, 'error');
+            showMessage(err.message);
+            fileInput.value = '';
         }
     };
-    reader.onerror = () => showMessage('파일을 읽지 못했어요. 다시 선택해 주세요.', 'error');
+    reader.onerror = () => showMessage('파일을 읽지 못했어요. 다시 선택해 주세요.');
     reader.readAsText(file, 'UTF-8');
-});
-
-saveButton.addEventListener('click', () => {
-    if (parsedBooks.length === 0) return;
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved && !confirm('이미 저장된 책 목록이 있어요. 새 목록으로 바꿀까요?')) return;
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedBooks));
-    preview.hidden = true;
-    showMessage(`${parsedBooks.length}권을 저장했어요. 홈으로 돌아가 확인해 보세요.`, 'success');
 });

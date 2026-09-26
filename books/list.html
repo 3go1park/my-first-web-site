@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#2b2118">
-    <title>책 목록 - 책 100권</title>
+    <title>책 목록 - 책읽는 삶의 재미</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="style.css">
@@ -14,13 +14,18 @@
         <a class="back-link" href="index.html">← 홈으로</a>
 
         <header class="page-header">
-            <p class="eyebrow">BOOK LIST</p>
+            <p class="eyebrow">책 목록</p>
             <h2>책 목록 <span id="book-count" class="book-count"></span></h2>
         </header>
 
+        <p id="flash" class="message success" hidden></p>
+
         <section id="empty" class="card" hidden>
-            <p class="hint">아직 저장된 책 목록이 없어요. 먼저 책 목록을 업로드해 주세요.</p>
-            <a class="secondary-button" href="upload.html">책 목록 업로드</a>
+            <p class="hint">아직 등록된 책이 없어요. 책 목록을 업로드하거나 직접 등록해 주세요.</p>
+            <div class="button-row">
+                <a class="secondary-button" href="upload.html">책 목록 업로드</a>
+                <a class="secondary-button" href="register.html">책 등록</a>
+            </div>
         </section>
 
         <section id="book-list" class="book-list" hidden>
@@ -35,6 +40,7 @@
             <ol id="book-rows"></ol>
         </section>
     </main>
+    <script src="common.js"></script>
     <script src="list.js"></script>
     <script src="register-sw.js"></script>
 </body>

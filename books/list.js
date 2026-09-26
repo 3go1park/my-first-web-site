@@ -1,17 +1,11 @@
 // 책 목록 화면: 저장된 책을 한 줄에 한 권씩 보여준다.
-const STORAGE_KEY = 'books100.books';
-
-const books = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+const books = loadBooks();
 const empty = document.getElementById('empty');
 const list = document.getElementById('book-list');
 const rows = document.getElementById('book-rows');
 const count = document.getElementById('book-count');
 
-function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[ch]));
-}
+showFlash(document.getElementById('flash'));
 
 if (books.length === 0) {
     empty.hidden = false;
@@ -31,4 +25,12 @@ if (books.length === 0) {
             <span class="col-year">${escapeHtml(b.year)}</span>
         </li>`).join('');
     list.hidden = false;
+
+    // 방금 등록한 책이 있으면 맨 아래 줄로 이동해 강조한다
+    if (location.hash === '#new') {
+        const last = rows.lastElementChild;
+        last.classList.add('is-new');
+        last.scrollIntoView({ block: 'center' });
+        history.replaceState(null, '', 'list.html');
+    }
 }
