@@ -1,0 +1,158 @@
+/* 갤럭시탭(가로 약 1280×800, 세로 약 800×1280) 화면 기준 */
+:root {
+    --bg: #f6f1e7;
+    --paper: #fffdf8;
+    --ink: #2b2118;
+    --muted: #7a6a58;
+    --accent: #b5542c;
+    --line: #e4d9c6;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Samsung Sans", "Noto Sans KR", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.home {
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: max(48px, env(safe-area-inset-top)) 48px max(48px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 40px;
+}
+
+.eyebrow {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    margin-bottom: 16px;
+}
+
+h1 {
+    font-size: clamp(40px, 6vw, 64px);
+    line-height: 1.2;
+    font-weight: 800;
+    word-break: keep-all;
+}
+
+h1 .nowrap {
+    white-space: nowrap;
+}
+
+h1 .accent {
+    color: var(--accent);
+}
+
+.lead {
+    margin-top: 20px;
+    font-size: 20px;
+    line-height: 1.6;
+    color: var(--muted);
+    word-break: keep-all;
+}
+
+.progress-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 32px 36px;
+}
+
+.progress-numbers {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.count {
+    font-size: 56px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.total {
+    font-size: 22px;
+    color: var(--muted);
+}
+
+.progress-bar {
+    margin-top: 20px;
+    height: 14px;
+    border-radius: 7px;
+    background: var(--line);
+    overflow: hidden;
+}
+
+.progress-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--accent);
+}
+
+.progress-label {
+    margin-top: 16px;
+    font-size: 18px;
+    color: var(--muted);
+    word-break: keep-all;
+}
+
+.start-button {
+    min-height: 64px;
+    padding: 0 48px;
+    border: none;
+    border-radius: 32px;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 22px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.start-button:active {
+    transform: scale(0.97);
+}
+
+/* 가로 모드: 제목은 왼쪽, 진행 카드와 버튼은 오른쪽 */
+@media (orientation: landscape) and (min-width: 1000px) {
+    .home {
+        max-width: 1200px;
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        grid-template-rows: auto auto;
+        align-content: center;
+        column-gap: 64px;
+        row-gap: 32px;
+    }
+
+    .home-header {
+        grid-row: 1 / 3;
+        align-self: center;
+    }
+
+    .progress-card {
+        align-self: end;
+    }
+
+    .start-button {
+        align-self: start;
+        width: 100%;
+    }
+}
