@@ -59,6 +59,7 @@ App.router = (() => {
 
     function render() {
         rememberScroll();
+        App.store.sync();   // 다른 창에서 바뀐 기록이 있으면 먼저 읽어 온다
         const { path, query, hash } = parse();
         const found = match(path);
         if (!found) {

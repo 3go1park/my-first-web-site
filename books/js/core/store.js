@@ -26,6 +26,8 @@ App.store = (() => {
     };
 
     let data = null;
+    // 마지막으로 읽거나 쓴 저장소 내용. 다른 창(크롬 탭과 홈 화면 앱 등)이 바꿨는지 비교하는 데 쓴다.
+    let lastRaw = null;
 
     function empty() {
         return { schema: SCHEMA, books: [], reading: {}, journal: [], settings: {}, deleted: emptyDeleted() };
@@ -98,9 +100,12 @@ App.store = (() => {
     }
 
     function load() {
-        const saved = readJson(KEY, null);
+        const raw = localStorage.getItem(KEY);
+        let saved = null;
+        try { saved = raw ? JSON.parse(raw) : null; } catch (err) { saved = null; }
         if (saved && saved.schema === SCHEMA) {
             data = complete(saved);
+            lastRaw = raw;
             return;
         }
         // 처음 한 번: 예전 저장 칸(books100.*)에서 옮겨 온다. 예전 칸은 지우지 않고 남겨 둔다.
@@ -114,7 +119,17 @@ App.store = (() => {
     }
 
     function save() {
-        localStorage.setItem(KEY, JSON.stringify(data));
+        const raw = JSON.stringify(data);
+        localStorage.setItem(KEY, raw);
+        lastRaw = raw;
+    }
+
+    // 다른 창이 저장소를 바꿨으면 다시 읽는다. 바뀌었으면 true.
+    // 화면을 그리기 전과 무언가를 저장하기 전에 반드시 부른다 (예전 기록으로 덮어쓰지 않도록).
+    function sync() {
+        if (localStorage.getItem(KEY) === lastRaw) return false;
+        load();
+        return true;
     }
 
     function numberOf(book) {
@@ -175,6 +190,7 @@ App.store = (() => {
     }
 
     function addBook(fields) {
+        sync();
         const b = cleanBook({ ...fields, no: fields.no || nextNumber() }, uid());
         b.updatedAt = Date.now();
         data.books.push(b);
@@ -187,6 +203,7 @@ App.store = (() => {
     }
 
     function updateBook(id, fields) {
+        sync();
         const b = book(id);
         // 번호를 비우면 원래 번호를 그대로 둔다
         Object.assign(b, cleanBook({ ...b, ...fields, no: fields.no || b.no }, id), { updatedAt: Date.now() });
@@ -197,6 +214,7 @@ App.store = (() => {
 
     // 책을 지우면 읽기 기록도 지운다. 독서 일지는 글을 잃지 않도록 책 제목만 남기고 둔다.
     function deleteBook(id) {
+        sync();
         const b = book(id);
         data.books = data.books.filter(x => x.id !== id);
         delete data.reading[id];
@@ -229,26 +247,29 @@ App.store = (() => {
 
     // mode: 'merge' 기존 책은 두고 새 책 추가·정보 갱신 / 'replace' 파일에 없는 책은 지움
     function applyImport(plan, mode) {
+        sync();
         const now = Date.now();
         plan.update.forEach(({ id, fields }) => {
             const b = book(id);
-            Object.assign(b, cleanBook({ ...b, ...fields }, id), { updatedAt: now });
+            if (b) Object.assign(b, cleanBook({ ...b, ...fields }, id), { updatedAt: now });
         });
         plan.add.forEach(fields => data.books.push({ ...cleanBook({ ...fields, no: fields.no || nextNumber() }, uid()), updatedAt: now }));
         save();
-        if (mode === 'replace') plan.missing.forEach(b => deleteBook(b.id));
+        if (mode === 'replace') plan.missing.forEach(b => { if (book(b.id)) deleteBook(b.id); });
         sortBooks();
         save();
     }
 
     // ---- 읽기 기록 --------------------------------------------------------
     function setRecord(id, fields) {
+        sync();
         data.reading[id] = { ...(data.reading[id] || {}), ...fields, updatedAt: Date.now() };
         save();
         return data.reading[id];
     }
 
     function clearRecord(id) {
+        sync();
         delete data.reading[id];
         data.deleted.reading[id] = Date.now();
         save();
@@ -256,6 +277,7 @@ App.store = (() => {
 
     // ---- 독서 일지 --------------------------------------------------------
     function addEntry(fields) {
+        sync();
         const entry = { id: uid(), createdAt: Date.now(), page: '', ...fields };
         entry.updatedAt = entry.createdAt;
         entry.bookTitle = entry.bookId ? (book(entry.bookId) || {}).title || '' : '';
@@ -265,6 +287,7 @@ App.store = (() => {
     }
 
     function updateEntry(id, fields) {
+        sync();
         const entry = data.journal.find(e => e.id === id);
         Object.assign(entry, fields, { updatedAt: Date.now() });
         entry.bookTitle = entry.bookId ? (book(entry.bookId) || {}).title || '' : entry.bookTitle;
@@ -273,6 +296,7 @@ App.store = (() => {
     }
 
     function deleteEntry(id) {
+        sync();
         data.journal = data.journal.filter(e => e.id !== id);
         data.deleted.journal[id] = Date.now();
         save();
@@ -283,10 +307,12 @@ App.store = (() => {
     const BACKUP_VERSION = 3;
 
     function exportData() {
+        sync();
         return { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: new Date().toISOString(), data };
     }
 
     function markBackedUp() {
+        sync();
         data.settings.lastBackup = today();
         save();
     }
@@ -306,6 +332,7 @@ App.store = (() => {
     }
 
     function restore({ next, hasJournal }) {
+        sync();
         if (!hasJournal) {
             // 일지가 없는 예전 백업: 지금 일지를 제목+저자로 새 책 번호에 다시 연결해 둔다
             const idByKey = new Map(next.books.map(b => [matchKey(b.title, b.author), b.id]));
@@ -439,10 +466,12 @@ App.store = (() => {
     }
 
     function previewMerge(parsed) {
-        return mergeData(data, parsed.next);
+        sync();
+        return { ...mergeData(data, parsed.next), incoming: parsed.next };
     }
 
     function applyMerge(merged) {
+        if (sync()) merged = { ...mergeData(data, merged.incoming), incoming: merged.incoming };
         merged.next.settings = { ...data.settings };
         data = complete(merged.next);
         save();
@@ -454,6 +483,6 @@ App.store = (() => {
         STATUS, books, book, record, journal, settings, statusOf, lastPage, progressOf,
         entriesOf, bookTitleOf, nextNumber, findSame, addBook, updateBook, deleteBook,
         planImport, applyImport, setRecord, clearRecord, addEntry, updateEntry, deleteEntry,
-        exportData, markBackedUp, parseBackup, restore, previewMerge, applyMerge, reload: load
+        exportData, markBackedUp, parseBackup, restore, previewMerge, applyMerge, sync
     };
 })();
