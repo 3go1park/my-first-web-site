@@ -2,7 +2,7 @@
 // 브라우저 캐시(GitHub Pages는 10분)에 남은 옛 파일이 새 파일과 섞이지 않도록
 // 매번 서버에 최신인지 확인한다(cache: 'no-cache').
 // 새 버전을 올릴 때는 이 CACHE 번호와 HTML의 ?v= 번호를 함께 올린다.
-const CACHE = 'books100-v6';
+const CACHE = 'books100-v7';
 const FILES = [
     './',
     'index.html',
@@ -12,6 +12,7 @@ const FILES = [
     'reading.html',
     'reading-edit.html',
     'backup.html',
+    'journal.html',
     'style.css',
     'common.js',
     'app.js',
@@ -21,6 +22,7 @@ const FILES = [
     'reading.js',
     'reading-edit.js',
     'backup.js',
+    'journal.js',
     'register-sw.js',
     'books-template.csv',
     'manifest.webmanifest',

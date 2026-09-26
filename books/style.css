@@ -408,6 +408,7 @@ h2 {
 }
 
 .field input,
+.field select,
 .field textarea {
     min-height: 56px;
     padding: 12px 16px;
@@ -425,6 +426,7 @@ h2 {
 }
 
 .field input:focus,
+.field select:focus,
 .field textarea:focus {
     outline: 3px solid var(--accent);
     outline-offset: -1px;
@@ -470,7 +472,7 @@ h2 {
 
 /* 홈: 읽기 상태별 권수 */
 .stat-tiles {
-    grid-column: 2 / -1;
+    grid-column: span 3;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
@@ -676,4 +678,111 @@ button.secondary-button {
     background: none;
     font-family: inherit;
     cursor: pointer;
+}
+
+/* 독서 일지 */
+.journal-fields {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 18px 24px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.form-actions .start-button {
+    flex: 1;
+}
+
+.journal-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.journal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.journal-header h3 {
+    font-size: 24px;
+}
+
+.filter-select {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.filter-select select {
+    min-height: 52px;
+    max-width: 360px;
+    padding: 0 16px;
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 17px;
+    font-family: inherit;
+}
+
+.journal-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.journal-date {
+    margin-top: 12px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+}
+
+.journal-entry {
+    gap: 10px;
+    padding: 22px 28px;
+}
+
+.journal-entry.is-editing {
+    border: 2px solid var(--accent);
+}
+
+.journal-book {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.journal-content {
+    font-size: 19px;
+    line-height: 1.7;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
+
+.journal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin: -8px -12px -12px 0;
+}
+
+.text-button.plain {
+    color: var(--ink);
+}
+
+@media (max-width: 999px) {
+    .journal-fields {
+        grid-template-columns: 1fr;
+    }
 }

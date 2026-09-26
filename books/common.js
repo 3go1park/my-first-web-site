@@ -90,3 +90,23 @@ function daysSince(dateText) {
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return Math.round((start - then) / 86400000);
 }
+
+// 독서 일지: 날짜별로 읽은 내용을 기록한다. [{ id, date, bookKey, content, createdAt }]
+const JOURNAL_KEY = 'books100.journal';
+
+function loadJournal() {
+    try {
+        return JSON.parse(localStorage.getItem(JOURNAL_KEY) || '[]');
+    } catch (err) {
+        return [];
+    }
+}
+
+function saveJournal(entries) {
+    localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
+}
+
+// 줄바꿈을 살려서 보여준다
+function escapeMultiline(value) {
+    return escapeHtml(value).replace(/\n/g, '<br>');
+}

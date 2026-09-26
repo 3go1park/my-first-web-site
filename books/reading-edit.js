@@ -39,6 +39,11 @@ if (!book) {
     form.elements.due.value = (record && record.due) || '';
     form.elements.done.value = (record && record.done) || '';
     clearButton.hidden = !record;
+
+    const journalCount = loadJournal().filter(e => e.bookKey === key).length;
+    const journalLink = document.getElementById('journal-link');
+    journalLink.href = 'journal.html?book=' + encodeURIComponent(key);
+    journalLink.textContent = `이 책의 독서 일지 (${journalCount}개)`;
     document.getElementById('editor').hidden = false;
 }
 
