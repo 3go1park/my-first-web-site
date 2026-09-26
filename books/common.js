@@ -32,3 +32,50 @@ function showFlash(element) {
     element.hidden = false;
     sessionStorage.removeItem(FLASH_KEY);
 }
+
+// 책 읽기 기록: 책 목록과 따로 저장한다. 책 목록을 다시 올려도 기록이 남도록
+// 번호 대신 "제목|저자"를 열쇠로 쓴다.
+const READING_KEY = 'books100.reading';
+
+const STATUS_LABELS = {
+    none: '읽기 전',
+    reading: '읽는 중',
+    late: '읽기 지연',
+    done: '읽기 완료'
+};
+
+function bookKey(book) {
+    return `${book.title}|${book.author}`;
+}
+
+function loadReading() {
+    try {
+        return JSON.parse(localStorage.getItem(READING_KEY) || '{}');
+    } catch (err) {
+        return {};
+    }
+}
+
+function saveReading(reading) {
+    localStorage.setItem(READING_KEY, JSON.stringify(reading));
+}
+
+// 오늘 날짜를 "2026-09-26" 형식으로 (탭의 현지 시간 기준)
+function today() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// 완료일이 있으면 읽기 완료, 완료예정일이 지났으면 읽기 지연, 시작일만 있으면 읽는 중
+function readingStatus(record) {
+    if (!record || !record.start) return 'none';
+    if (record.done) return 'done';
+    if (record.due && record.due < today()) return 'late';
+    return 'reading';
+}
+
+// "2026-09-26" → "2026.09.26"
+function formatDate(value) {
+    return value ? value.replace(/-/g, '.') : '';
+}
