@@ -323,6 +323,14 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
 .plan-list b { color: var(--accent); font-size: 22px; }
 .plan-warn { color: var(--late-ink); font-size: 16px; }
 
+/* 백업 · 복원 */
+.restore-plan { display: flex; flex-direction: column; gap: 14px; }
+.plan-title { font-size: 17px; font-weight: 700; }
+.restore-option { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg); }
+.restore-option h4 { font-size: 19px; }
+.recommend { margin-left: 6px; padding: 2px 10px; border-radius: 999px; background: var(--accent); color: var(--paper); font-size: 13px; vertical-align: middle; }
+.tip-list { padding-left: 24px; display: flex; flex-direction: column; gap: 8px; font-size: 17px; line-height: 1.6; }
+
 /* 독서 일지 */
 .journal-fields { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 18px 24px; }
 .journal-section { display: flex; flex-direction: column; gap: 14px; }

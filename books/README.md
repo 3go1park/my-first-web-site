@@ -37,10 +37,11 @@ books/
 ```js
 {
   schema: 2,
-  books:   [{ id, no, title, originalTitle, author, publisher, year, genre, country, pages, summary }],
-  reading: { [bookId]: { start, due, done, rating, review } },
-  journal: [{ id, date, bookId, bookTitle, content, page, createdAt }],
-  settings:{ lastBackup }
+  books:   [{ id, no, title, originalTitle, author, publisher, year, genre, country, pages, summary, updatedAt }],
+  reading: { [bookId]: { start, due, done, rating, review, updatedAt } },
+  journal: [{ id, date, bookId, bookTitle, content, page, createdAt, updatedAt }],
+  settings:{ lastBackup },
+  deleted: { books: { id: 지운 시각 }, reading: { bookId: 시각 }, journal: { id: 시각 } }
 }
 ```
 
@@ -48,6 +49,9 @@ books/
 - 읽기 상태는 저장하지 않고 날짜로 계산합니다 (`store.statusOf`): 완료일 → 읽기 완료,
   완료예정일이 지남 → 읽기 지연, 시작일만 있음 → 읽는 중, 없음 → 읽기 전.
 - 예전 모양(`books100.*`)의 데이터는 처음 열 때 자동으로 옮기고, 예전 칸은 지우지 않습니다.
+- `updatedAt`(마지막으로 고친 시각)과 `deleted`(지운 기록)는 **합쳐서 복원**에 쓰입니다 (`store.mergeData`).
+  한쪽에만 있으면 더하고, 둘 다 있으면 더 최근에 고친 쪽을 남기며, 한쪽에서 지운 것은 지운 뒤 고친 적이 없으면 지웁니다.
+  책은 `id`가 같거나 제목+저자가 같으면 같은 책으로 봅니다.
 - 데이터 모양을 바꿀 때는 `store.js`의 `SCHEMA`를 올리고 `load()`에서 옮기는 코드를 더합니다.
 
 ## 새 화면 만들기
