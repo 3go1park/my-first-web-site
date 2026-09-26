@@ -20,20 +20,31 @@ App.route('/backup', {
                 </section>
                 <section class="card">
                     <h3>복원하기</h3>
-                    <p class="hint">백업 파일(.json)을 고르면 지금 저장된 내용이 <strong>백업 파일 내용으로 바뀌어요</strong>.</p>
+                    <p class="hint">다른 기기에서 만든 백업 파일(.json)을 고르면, 지금 기록에 <strong>합칠지</strong> 아니면 백업으로 <strong>바꿀지</strong> 고를 수 있어요.</p>
                     <label class="file-drop">
                         <input id="restore" type="file" accept=".json,application/json">
                         ${icon('download')}
                         <span>여기를 눌러 백업 파일을 선택하세요</span>
                     </label>
                     <p id="message" class="message error" hidden></p>
+                    <div id="restore-plan" class="restore-plan" hidden></div>
                 </section>
-            </div>`;
+            </div>
+            <section class="card tip-card">
+                <h3>두 기기의 기록을 맞추는 방법</h3>
+                <ol class="tip-list">
+                    <li>기기 A에서 <b>백업 파일 저장</b> → 파일을 기기 B로 보내기 (카카오톡, 드라이브 등)</li>
+                    <li>기기 B에서 그 파일로 <b>합쳐서 복원</b></li>
+                    <li>기기 B에서 다시 <b>백업 파일 저장</b> → 기기 A에서 <b>합쳐서 복원</b></li>
+                </ol>
+                <p class="hint">이렇게 하면 두 기기의 기록이 같아져요. 같은 기록을 양쪽에서 고쳤다면 더 나중에 고친 내용이 남아요.</p>
+            </section>`;
 
         const download = el.querySelector('#download');
         const share = el.querySelector('#share');
         const restoreInput = el.querySelector('#restore');
         const message = el.querySelector('#message');
+        const planBox = el.querySelector('#restore-plan');
 
         function renderSummary() {
             const records = store.books().filter(b => store.record(b.id)).length;
@@ -74,9 +85,26 @@ App.route('/backup', {
             } catch (err) { /* 공유 창을 닫은 경우 */ }
         });
 
+        // 합치면 무엇이 바뀌는지 한 줄씩
+        function mergeLines(summary) {
+            const lines = [
+                [summary.booksAdded, '권 새 책'],
+                [summary.booksUpdated, '권 책 정보 갱신'],
+                [summary.recordsAdded, '개 새 읽기 기록'],
+                [summary.recordsUpdated, '개 읽기 기록 갱신'],
+                [summary.entriesAdded, '개 새 독서 일지'],
+                [summary.entriesUpdated, '개 독서 일지 갱신'],
+                [summary.removed, '개 다른 기기에서 지운 항목 반영']
+            ].filter(([n]) => n > 0);
+            return lines.length
+                ? lines.map(([n, text]) => `<li><b>${n}</b>${text}</li>`).join('')
+                : '<li>더할 새 내용이 없어요. 두 기기의 기록이 이미 같아요.</li>';
+        }
+
         restoreInput.addEventListener('change', async () => {
             const file = restoreInput.files[0];
             message.hidden = true;
+            planBox.hidden = true;
             if (!file) return;
             const fail = text => {
                 message.textContent = text;
@@ -91,18 +119,43 @@ App.route('/backup', {
             }
             const parsed = store.parseBackup(json);
             if (!parsed) return fail('이 앱의 백업 파일이 아니에요. "reading-life-backup-날짜.json" 파일을 골라 주세요.');
+            restoreInput.value = '';
 
             const { next, hasJournal } = parsed;
             const records = Object.keys(next.reading).length;
-            const journalText = hasJournal ? `독서 일지 ${next.journal.length}개` : '독서 일지 없음(지금 일지는 그대로 둬요)';
             const when = json.exportedAt ? formatDate(json.exportedAt.slice(0, 10)) + ' 백업' : '백업 파일';
-            if (!confirm(`${when}: 책 ${next.books.length}권, 읽기 기록 ${records}개, ${journalText}\n지금 저장된 내용을 이 백업으로 바꿀까요?`)) {
-                restoreInput.value = '';
-                return;
-            }
-            store.restore(parsed);
-            App.ui.toast(`복원했어요. 책 ${store.books().length}권, 읽기 기록 ${records}개, 독서 일지 ${store.journal().length}개`, { next: true });
-            App.router.go('/');
+            const merged = store.previewMerge(parsed);
+
+            planBox.innerHTML = `
+                <p class="plan-title">${when}: 책 ${next.books.length}권, 읽기 기록 ${records}개, ${hasJournal ? `독서 일지 ${next.journal.length}개` : '독서 일지 없음'}</p>
+                <div class="restore-option">
+                    <h4>합쳐서 복원 <span class="recommend">추천</span></h4>
+                    <p class="hint">지금 기록은 그대로 두고, 백업에만 있는 것을 더해요.</p>
+                    <ul class="plan-list">${mergeLines(merged.summary)}</ul>
+                    <button class="btn btn-primary" data-action="merge" type="button" ${merged.summary.changed ? '' : 'disabled'}>합쳐서 복원</button>
+                </div>
+                <div class="restore-option">
+                    <h4>백업으로 바꾸기</h4>
+                    <p class="hint">지금 기록을 모두 지우고 백업 내용으로 바꿔요.${hasJournal ? '' : ' 독서 일지는 지금 것을 그대로 둬요.'}</p>
+                    <button class="btn btn-outline" data-action="replace" type="button">백업으로 바꾸기</button>
+                </div>`;
+            planBox.hidden = false;
+
+            planBox.onclick = event => {
+                const action = event.target.dataset.action;
+                if (action === 'merge') {
+                    store.applyMerge(merged);
+                    const s = merged.summary;
+                    App.ui.toast(`합쳤어요. 새 책 ${s.booksAdded}권, 새 일지 ${s.entriesAdded}개, 읽기 기록 ${s.recordsAdded + s.recordsUpdated}개 반영`, { next: true });
+                    App.router.go('/');
+                }
+                if (action === 'replace') {
+                    if (!confirm('지금 저장된 내용을 모두 지우고 이 백업으로 바꿀까요?')) return;
+                    store.restore(parsed);
+                    App.ui.toast(`백업으로 바꿨어요. 책 ${store.books().length}권, 읽기 기록 ${records}개, 독서 일지 ${store.journal().length}개`, { next: true });
+                    App.router.go('/');
+                }
+            };
         });
 
         renderSummary();
