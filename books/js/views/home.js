@@ -100,6 +100,7 @@ App.route('/', {
                         ${tile('#/backup', 'save', '백업 · 복원',
                             lastBackup ? `마지막 백업 ${relativeDay(lastBackup)}` : '백업한 적 없음',
                             needsBackup ? 'needs-backup' : '')}
+                        ${tile('#/install', 'phone', '홈 화면 아이콘', App.install.isStandalone() ? '앱으로 실행 중' : '설치·다시 등록')}
                     </div>
                 </section>
             </div>`;
