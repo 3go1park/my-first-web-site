@@ -29,7 +29,8 @@ App.route('/books/upload', {
                     <h3>양식 파일</h3>
                     <p class="hint">첫 줄의 항목 이름은 그대로 두고, 둘째 줄부터 책을 한 줄에 한 권씩 채워 주세요.</p>
                     <p class="hint">항목: ${Object.keys(COLUMNS).join(', ')}<br>(제목과 저자는 꼭 필요해요)</p>
-                    <p class="hint">이미 있는 책(제목·저자가 같은 책)은 새로 추가하지 않고 정보만 갱신해요. 읽기 기록과 일지는 그대로 남아요.</p>
+                    <p class="hint">이미 있는 책(제목·저자가 같은 책)은 새로 추가하지 않고 <b>값이 있는 칸만</b> 갱신해요. 빈 칸은 기존 값을 그대로 두고, 읽기 기록과 일지도 그대로 남아요.</p>
+                    <p class="hint">제목이나 저자를 바꾸면 다른 책으로 보고 새로 추가해요. 이름을 고칠 때는 책 상세의 <b>책 정보 수정</b>을 쓰세요.</p>
                     <a class="btn btn-outline" href="books-template.csv" download="책목록-양식.csv">양식 파일 받기</a>
                 </section>
             </div>`;
@@ -56,15 +57,21 @@ App.route('/books/upload', {
 
         function showPlan(plan, skipped) {
             const hasBooks = store.books().length > 0;
+            const renumbered = plan.renumbered.map(r => r.isNew
+                ? `'${r.title}' ${r.wanted}번 → ${r.used}번`
+                : `'${r.title}' ${r.wanted}번 대신 ${r.used}번 유지`);
             planBox.innerHTML = `
                 <ul class="plan-list">
                     <li><b>${plan.add.length}</b>권 새로 추가</li>
-                    ${hasBooks ? `<li><b>${plan.update.length}</b>권 정보 갱신 (읽기 기록 유지)</li>` : ''}
+                    ${hasBooks ? `<li><b>${plan.update.length}</b>권 정보 갱신 <small class="hint">(값이 있는 칸만, 읽기 기록 유지)</small></li>` : ''}
+                    ${plan.same ? `<li><b>${plan.same}</b>권 변경 없음</li>` : ''}
                     ${hasBooks ? `<li><b>${plan.missing.length}</b>권은 파일에 없음</li>` : ''}
+                    ${renumbered.length ? `<li class="plan-warn">번호가 겹쳐 조정: ${escapeHtml(renumbered.slice(0, 5).join(', '))}${renumbered.length > 5 ? ` 외 ${renumbered.length - 5}권` : ''}</li>` : ''}
                     ${skipped.length ? `<li class="plan-warn">제목이나 저자가 빠져 건너뛴 줄: ${escapeHtml(skipped.join(', '))}</li>` : ''}
                 </ul>
                 <div class="button-column">
-                    <button class="btn btn-primary" data-mode="merge" type="button">${hasBooks ? '목록에 합치기' : '저장하기'}</button>
+                    <button class="btn btn-primary" data-mode="merge" type="button"
+                        ${plan.add.length || plan.update.length ? '' : 'disabled'}>${hasBooks ? '목록에 합치기' : '저장하기'}</button>
                     ${hasBooks && plan.missing.length
                         ? `<button class="btn btn-outline" data-mode="replace" type="button">파일 목록으로 바꾸기 (없는 ${plan.missing.length}권 지움)</button>`
                         : ''}
