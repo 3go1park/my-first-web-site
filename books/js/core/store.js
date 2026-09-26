@@ -228,19 +228,69 @@ App.store = (() => {
         save();
     }
 
-    // CSV로 읽은 책들을 목록과 비교한다: 새 책 / 정보가 갱신될 책 / 파일에 없는 기존 책
+    // 한 칸의 값을 저장할 모양으로 다듬는다 (쪽수는 숫자만)
+    function cleanField(field, value) {
+        const text = value == null ? '' : String(value).trim();
+        return field === 'pages' ? text.replace(/[^\d]/g, '') : text;
+    }
+
+    // CSV로 읽은 책들을 목록과 비교해 무엇을 할지 정한다. 아직 저장하지 않는다.
+    //   add       새로 추가할 책 (번호까지 정해 둠)
+    //   update    바뀌는 칸만 담은 기존 책 [{ id, title, fields }]  ← 빈 칸은 기존 값을 그대로 둔다
+    //   same      파일과 똑같아 바뀌지 않는 기존 책 수
+    //   renumbered 번호가 겹쳐 조정한 책 [{ title, wanted, used, isNew }]
+    //   missing   파일에 없는 기존 책
     function planImport(rows) {
         const existing = new Map(data.books.map(b => [matchKey(b.title, b.author), b]));
+        const owner = new Map(data.books.map(b => [b.no, b.id]));   // 번호 → 그 번호를 쓰는 책
         const seen = new Set();
-        const plan = { add: [], update: [], missing: [] };
+        const plan = { add: [], update: [], same: 0, renumbered: [], missing: [] };
+        const newRows = [];
+
         rows.forEach(row => {
             const key = matchKey(row.title, row.author);
             if (seen.has(key)) return;
             seen.add(key);
             const same = existing.get(key);
-            if (same) plan.update.push({ id: same.id, fields: row });
-            else plan.add.push(row);
+            if (!same) {
+                newRows.push(row);
+                return;
+            }
+            const fields = {};
+            BOOK_FIELDS.forEach(f => {
+                const value = cleanField(f, row[f]);
+                if (value && value !== same[f]) fields[f] = value;
+            });
+            if (fields.no) {
+                const taken = owner.get(fields.no);
+                if (taken && taken !== same.id) {
+                    plan.renumbered.push({ title: same.title, wanted: fields.no, used: same.no, isNew: false });
+                    delete fields.no;
+                } else {
+                    owner.delete(same.no);
+                    owner.set(fields.no, same.id);
+                }
+            }
+            if (Object.keys(fields).length) plan.update.push({ id: same.id, title: same.title, fields });
+            else plan.same++;
         });
+
+        // 새 책 번호: 비었거나 이미 쓰는 번호면 맨 뒤 번호를 붙인다
+        let max = Math.max(0, ...[...owner.keys()].map(n => parseInt(n, 10)).filter(n => !isNaN(n)));
+        newRows.forEach(row => {
+            const book = {};
+            BOOK_FIELDS.forEach(f => { book[f] = cleanField(f, row[f]); });
+            if (!book.no || owner.has(book.no)) {
+                const used = String(++max);
+                if (book.no) plan.renumbered.push({ title: book.title, wanted: book.no, used, isNew: true });
+                book.no = used;
+            } else {
+                max = Math.max(max, parseInt(book.no, 10) || 0);
+            }
+            owner.set(book.no, 'new');
+            plan.add.push(book);
+        });
+
         plan.missing = data.books.filter(b => !seen.has(matchKey(b.title, b.author)));
         return plan;
     }
@@ -251,7 +301,7 @@ App.store = (() => {
         const now = Date.now();
         plan.update.forEach(({ id, fields }) => {
             const b = book(id);
-            if (b) Object.assign(b, cleanBook({ ...b, ...fields }, id), { updatedAt: now });
+            if (b) Object.assign(b, fields, { updatedAt: now });
         });
         plan.add.forEach(fields => data.books.push({ ...cleanBook({ ...fields, no: fields.no || nextNumber() }, uid()), updatedAt: now }));
         save();
