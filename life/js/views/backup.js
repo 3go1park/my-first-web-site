@@ -16,6 +16,9 @@ App.route('/backup', {
                     <p id="last" class="hint"></p>
                     <button id="download" class="btn btn-primary" type="button">${icon('download')} 백업 파일 저장</button>
                     <button id="share" class="btn btn-outline" type="button" hidden>드라이브·메일 등으로 보내기</button>
+                    <button id="copy" class="btn btn-outline" type="button">백업 내용 복사 (파일 없이 옮기기)</button>
+                    <textarea id="copy-box" class="copy-box" rows="4" readonly hidden></textarea>
+                    <p id="copy-hint" class="hint small" hidden>위 글을 길게 눌러 <b>모두 선택 → 복사</b>한 뒤, 옮길 곳의 "붙여 넣어 복원"에 붙여 넣으세요.</p>
                     <p class="hint">저장한 파일은 탭의 "내 파일 → 다운로드" 폴더에 있어요. 구글 드라이브 같은 곳에 한 부 더 보관하면 탭을 바꿔도 복원할 수 있어요.</p>
                 </section>
                 <section class="card">
@@ -26,6 +29,11 @@ App.route('/backup', {
                         ${icon('save')}
                         <span>여기를 눌러 백업 파일을 선택하세요</span>
                     </label>
+                    <details class="paste-restore">
+                        <summary>백업 파일이 없나요? 복사한 백업 내용을 붙여 넣어 복원</summary>
+                        <textarea id="paste-box" class="copy-box" rows="4" placeholder="여기에 길게 눌러 붙여 넣기"></textarea>
+                        <button id="paste-restore" class="btn btn-outline" type="button">붙여 넣은 내용으로 복원</button>
+                    </details>
                     <p id="message" class="message error" hidden></p>
                     <div id="restore-plan" class="restore-plan" hidden></div>
                 </section>
@@ -71,7 +79,27 @@ App.route('/backup', {
             setTimeout(() => URL.revokeObjectURL(url), 1000);
             store.markBackedUp();
             renderSummary();
-            App.ui.toast('백업 파일을 저장했어요.');
+            // 앱 안의 브라우저 등에서는 내려받기가 조용히 막힐 수 있어 확인을 부탁한다
+            App.ui.toast('백업 파일 내려받기를 시작했어요. "내 파일 → 다운로드"에 파일이 있는지 꼭 확인하세요.');
+        });
+
+        // 파일 없이 옮기기: 백업 내용을 글자로 복사한다
+        el.querySelector('#copy').addEventListener('click', async () => {
+            const text = JSON.stringify(store.exportData());
+            const box = el.querySelector('#copy-box');
+            try {
+                await navigator.clipboard.writeText(text);
+                store.markBackedUp();
+                renderSummary();
+                App.ui.toast('백업 내용을 복사했어요. 옮길 곳의 "붙여 넣어 복원"에 붙여 넣으세요.');
+            } catch (err) {
+                // 복사가 막히면 글을 보여 주고 직접 복사하게 한다
+                box.value = text;
+                box.hidden = false;
+                el.querySelector('#copy-hint').hidden = false;
+                box.focus();
+                box.select();
+            }
         });
 
         // 탭의 공유 기능(드라이브, 메일, 카카오톡 등)으로 바로 보내기
@@ -109,15 +137,35 @@ App.route('/backup', {
                 message.hidden = false;
                 restoreInput.value = '';
             };
-            let json;
+            let text;
             try {
-                json = JSON.parse(await readFileText(file));
+                text = await readFileText(file);
             } catch (err) {
                 return fail('백업 파일을 읽지 못했어요. 이 앱에서 만든 백업 파일(.json)인지 확인해 주세요.');
             }
-            const parsed = store.parseBackup(json);
-            if (!parsed) return fail('이 앱의 백업 파일이 아니에요. "daily-life-backup-날짜.json" 파일을 골라 주세요.');
             restoreInput.value = '';
+            showPlan(text, fail);
+        });
+
+        el.querySelector('#paste-restore').addEventListener('click', () => {
+            message.hidden = true;
+            planBox.hidden = true;
+            const text = el.querySelector('#paste-box').value.trim();
+            const fail = t => { message.textContent = t; message.hidden = false; };
+            if (!text) return fail('복사한 백업 내용을 먼저 붙여 넣어 주세요.');
+            showPlan(text, fail);
+        });
+
+        // 백업 글자를 읽어 "합쳐서 복원 / 백업으로 바꾸기"를 보여 준다
+        function showPlan(text, fail) {
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch (err) {
+                return fail('백업 내용을 읽지 못했어요. 이 앱에서 만든 백업 파일이나 복사한 백업 내용인지 확인해 주세요.');
+            }
+            const parsed = store.parseBackup(json);
+            if (!parsed) return fail('이 앱의 백업이 아니에요. "daily-life-backup-날짜.json" 파일이나 "백업 내용 복사"로 복사한 내용을 써 주세요.');
 
             const { next } = parsed;
             const when = json.exportedAt ? formatDate(json.exportedAt.slice(0, 10)) + ' 백업' : '백업 파일';
@@ -159,7 +207,7 @@ App.route('/backup', {
                     App.router.go('/');
                 }
             };
-        });
+        }
 
         renderSummary();
     }

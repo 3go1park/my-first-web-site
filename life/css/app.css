@@ -378,6 +378,11 @@ a.todo-row:active { background: var(--line); }
 .diary-text { font-size: 17px; line-height: 1.7; color: var(--ink); word-break: keep-all; overflow-wrap: anywhere; }
 
 /* 백업 · 복원 */
+.copy-box { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--ink); font-size: 14px; font-family: monospace; resize: vertical; }
+.paste-restore { display: flex; flex-direction: column; gap: 10px; }
+.paste-restore summary { min-height: 44px; display: flex; align-items: center; font-size: 17px; font-weight: 700; color: var(--accent); cursor: pointer; }
+.paste-restore[open] { display: flex; }
+.paste-restore > * + * { margin-top: 10px; }
 .restore-plan { display: flex; flex-direction: column; gap: 14px; }
 .plan-title { font-size: 17px; font-weight: 700; }
 .plan-list { list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 18px; }
