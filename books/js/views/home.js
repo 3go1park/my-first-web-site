@@ -12,7 +12,9 @@ App.route('/', {
         const streak = insights.currentStreak();
         const todayEntries = insights.entriesByDay().get(today()) || 0;
         const lastBackup = store.settings().lastBackup;
-        const needsBackup = books.length > 0 && (!lastBackup || daysBetween(lastBackup, today()) >= 7);
+        const cloud = App.cloud.summary();
+        const needsBackup = cloud ? cloud.bad || !cloud.lastOk
+            : books.length > 0 && (!lastBackup || daysBetween(lastBackup, today()) >= 7);
 
         const summary = books.length
             ? `등록된 책 ${books.length}권 · 읽기 완료 ${counts.done}권` + (streak ? ` · ${streak}일 연속 기록 중` : '')
@@ -98,7 +100,7 @@ App.route('/', {
                     <h2 class="group-title">관리</h2>
                     <div class="menu-grid">
                         ${tile('#/backup', 'save', '백업 · 복원',
-                            lastBackup ? `마지막 백업 ${relativeDay(lastBackup)}` : '백업한 적 없음',
+                            cloud ? cloud.text : lastBackup ? `마지막 백업 ${relativeDay(lastBackup)}` : '백업한 적 없음',
                             needsBackup ? 'needs-backup' : '')}
                         ${tile('#/install', 'phone', '홈 화면 아이콘', App.install.isStandalone() ? '앱으로 실행 중' : '설치·다시 등록')}
                     </div>
