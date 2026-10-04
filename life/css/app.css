@@ -340,6 +340,22 @@ a.todo-row:active { background: var(--line); }
 .summary-line { display: flex; flex-direction: column; gap: 10px; }
 .summary-line .progress { max-width: 480px; }
 .summary-list { max-height: 300px; overflow-y: auto; padding-right: 4px; }
+.pick-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pick-bar .hint { flex: 1; min-width: 220px; }
+.pick-bar .btn .icon { width: 20px; height: 20px; stroke: currentColor; }
+.pick-todo {
+    flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 0 10px;
+    border: none; border-radius: 12px; background: none; color: var(--ink);
+    font-size: 18px; font-family: inherit; text-align: left; cursor: pointer;
+}
+.pick-todo span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-box {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 26px; height: 26px; border: 2px solid var(--accent); border-radius: 50%;
+    color: var(--paper); font-size: 16px; font-weight: 800;
+}
+.summary-item.is-picked .pick-todo { background: var(--accent-soft); }
+.summary-item.is-picked .pick-box { background: var(--accent); }
 .summary-item a { flex: 1; font-size: 18px; text-decoration: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 18px; }
 .status-row a { display: flex; align-items: center; gap: 6px; text-decoration: none; }
