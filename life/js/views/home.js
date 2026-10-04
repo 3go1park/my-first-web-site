@@ -3,7 +3,7 @@ App.route('/', {
     title: '',
     render(el) {
         const { escapeHtml, today, formatDay, daysBetween, relativeDay } = App.util;
-        const { icon, statusBadge, checkButton, bindChecks } = App.ui;
+        const { icon, statusBadge, checkButton, bindChecks, toast } = App.ui;
         const store = App.store;
         const sch = App.schedule;
         const now = today();
@@ -47,6 +47,8 @@ App.route('/', {
                 <p class="lead">${formatDay(now)}${lunarText ? ` · ${lunarText}` : ''}
                     · 오늘 할일 ${todayList.length}개 중 ${doneToday}개 완료${lateCount ? ` · <b class="late-text">지연 ${lateCount}개</b>` : ''}</p>
             </header>
+
+            <div id="install-banner"></div>
 
             <div class="home-today">
                 <section class="card home-section">
@@ -105,5 +107,38 @@ App.route('/', {
             </div>`;
 
         bindChecks(el);
+
+        // 홈 화면 앱으로 실행 중이 아니면 바로 설치할 수 있게 알려 준다
+        const install = App.install;
+        const banner = el.querySelector('#install-banner');
+        function renderBanner() {
+            if (install.isStandalone() || install.justInstalled()) {
+                banner.innerHTML = '';
+                return;
+            }
+            banner.innerHTML = `
+                <section class="card install-banner">
+                    <img src="icons/icon-192.png" alt="" width="56" height="56">
+                    <div class="install-text">
+                        <strong>앱으로 설치해서 쓰세요</strong>
+                        <span class="hint small">${install.canPrompt()
+                            ? '홈 화면에 아이콘이 생기고, 주소창 없이 가로 화면으로 열려요.'
+                            : '크롬 메뉴(⋮) → <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>를 누르세요.'}</span>
+                    </div>
+                    ${install.canPrompt()
+                        ? '<button id="install-now" class="btn" type="button">홈 화면에 설치</button>'
+                        : '<a class="btn btn-outline" href="#/install">설치 방법</a>'}
+                </section>`;
+            const button = banner.querySelector('#install-now');
+            if (button) button.addEventListener('click', async () => {
+                const outcome = await install.prompt();
+                if (outcome === 'dismissed') toast('설치를 취소했어요. 언제든 다시 설치할 수 있어요.');
+            });
+        }
+        const stop = install.onChange(() => {
+            if (document.body.contains(banner)) renderBanner();
+            else stop();
+        });
+        renderBanner();
     }
 });
