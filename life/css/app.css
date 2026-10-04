@@ -452,6 +452,17 @@ a.todo-row:active { background: var(--line); }
 .genre-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .genre-value { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 
+/* 구글 드라이브 자동 백업 */
+.cloud-card { border: 2px solid var(--accent); }
+.cloud-state { padding: 4px 14px; border-radius: 999px; background: var(--line); font-size: 15px; font-weight: 800; color: var(--muted); }
+.cloud-state.is-on { background: var(--done-bg); color: var(--done-ink); }
+.cloud-state.is-bad { background: var(--late-bg); color: var(--late-ink); }
+.cloud-line { font-size: 17px; font-weight: 700; }
+.cloud-line.is-bad { color: var(--late-ink); }
+.cloud-help summary { min-height: 44px; display: flex; align-items: center; font-size: 17px; font-weight: 700; color: var(--accent); cursor: pointer; }
+.cloud-help > * + * { margin-top: 10px; }
+.cloud-help code { padding: 1px 6px; border-radius: 6px; background: var(--bg); }
+
 /* 5. 좁은 화면 (세로로 든 탭) ----------------------------------------------- */
 @media (max-width: 999px) {
     .page { padding: 20px 20px 40px; }

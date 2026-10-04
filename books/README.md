@@ -12,6 +12,7 @@ books/
 ├── js/
 │   ├── core/             화면이 공통으로 쓰는 부분
 │   │   ├── util.js       날짜, 글자 처리, CSV 읽기 같은 작은 도구
+│   │   ├── cloud.js      구글 드라이브 자동 백업 (life 와 같은 파일)
 │   │   ├── store.js      데이터 저장소 (책·읽기 기록·일지·백업). localStorage는 여기서만 만진다
 │   │   ├── insights.js   통계 계산 (홈과 통계 화면이 함께 씀)
 │   │   ├── ui.js         토스트 알림, 상태 표시, 진행 막대, 아이콘
@@ -99,3 +100,9 @@ main에 합쳐지면 GitHub Pages가 1~2분 안에 배포합니다.
 
 통계 차트는 색약 검사를 통과한 값만 씁니다 (`css/app.css`의 `--chart-*`, `--heat-*`).
 한 가지 값은 강조색(`--accent`) 하나로, 많고 적음은 같은 색의 밝기 단계로 나타냅니다.
+
+## 구글 드라이브 자동 백업
+
+`js/core/cloud.js`가 저장(`store.save`)할 때마다 구글 Apps Script 웹 앱(`../apps-script/drive-backup.gs`)으로
+전체 백업을 보냅니다. 설정 방법은 [`apps-script/README.md`](../apps-script/README.md).
+`cloud.js`는 두 앱(books, life)이 **똑같은 파일**을 씁니다. 고치면 두 곳을 함께 고칩니다.

@@ -25,6 +25,7 @@ life/
 │   ├── core/
 │   │   ├── util.js       날짜, 글자 처리 같은 작은 도구
 │   │   ├── lunar.js      양력 → 음력 (브라우저의 한국 음력 달력 Intl 'dangi' 사용)
+│   │   ├── cloud.js      구글 드라이브 자동 백업 (books 와 같은 파일)
 │   │   ├── store.js      데이터 저장소 (할일·일기·백업). localStorage는 여기서만 만진다
 │   │   ├── schedule.js   반복 회차 계산, 상태(진행·지연·진행전·완료) 계산
 │   │   ├── moods.js      일기 기분 목록
@@ -75,3 +76,9 @@ python3 tools/release.py life --check  # 확인만
 
 파일을 더하거나 고친 뒤에는 **반드시** `release.py life`를 실행하고 커밋합니다.
 main에 합쳐지면 GitHub Pages가 1~2분 안에 배포합니다.
+
+## 구글 드라이브 자동 백업
+
+`js/core/cloud.js`가 저장(`store.save`)할 때마다 구글 Apps Script 웹 앱(`../apps-script/drive-backup.gs`)으로
+전체 백업을 보냅니다. 설정 방법은 [`apps-script/README.md`](../apps-script/README.md).
+`cloud.js`는 두 앱(books, life)이 **똑같은 파일**을 씁니다. 고치면 두 곳을 함께 고칩니다.

@@ -8,7 +8,8 @@ App.route('/backup', {
         const store = App.store;
 
         el.innerHTML = `
-            <p class="lead">할일과 일기는 이 탭 안에만 저장돼요. 앱을 지우거나 브라우저 데이터를 삭제하면 사라지니, 백업 파일을 만들어 안전한 곳에 보관하세요.</p>
+            <p class="lead">할일과 일기는 이 탭의 브라우저 안에 저장돼요. 브라우저 데이터를 삭제하면 사라지니, 구글 드라이브 자동 백업을 켜 두거나 백업 파일을 만들어 보관하세요.</p>
+            <section id="cloud-card" class="card cloud-card"></section>
             <div class="two-columns">
                 <section class="card">
                     <h3>백업하기</h3>
@@ -208,6 +209,15 @@ App.route('/backup', {
                 }
             };
         }
+
+        // 구글 드라이브 자동 백업 카드. "드라이브에서 불러오기"는 파일 복원과 같은 화면으로
+        App.cloud.renderCard(el.querySelector('#cloud-card'), {
+            onLoaded(text) {
+                message.hidden = true;
+                showPlan(text, t => { message.textContent = t; message.hidden = false; });
+                planBox.scrollIntoView({ block: 'center' });
+            }
+        });
 
         renderSummary();
     }

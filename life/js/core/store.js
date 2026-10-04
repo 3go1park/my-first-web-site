@@ -81,6 +81,7 @@ App.store = (() => {
         const raw = JSON.stringify(data);
         localStorage.setItem(KEY, raw);
         lastRaw = raw;
+        if (App.cloud) App.cloud.schedule();   // 구글 드라이브 자동 백업 (켜져 있을 때만)
     }
 
     // 다른 창이 저장소를 바꿨으면 다시 읽는다. 바뀌었으면 true.
