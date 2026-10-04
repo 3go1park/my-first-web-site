@@ -1,0 +1,344 @@
+// 갤탭 폴더 자동 저장. "하루 하루 삶의 기록"과 "책읽는 삶의 재미"가 같은 파일을 쓴다
+// (두 앱의 js/core/folder-backup.js 는 똑같이 유지한다).
+//
+// 처음 한 번 탭의 폴더(예: 내 파일 → 문서 → 삶의기록)를 고르면, 자료를 저장할 때마다(store.save)
+// 몇 초 뒤 그 폴더에 백업 파일을 자동으로 쓴다. 브라우저 자료가 지워져도 폴더의 파일은 남는다.
+//   daily-life-latest.json / reading-life-latest.json : 가장 최근 상태 ("폴더에서 불러오기"로 읽음)
+//   …-YYYY-MM-DD.json            : 날짜별 (그날의 마지막 상태, 90일 지나면 지움)
+//   …-before-shrink-시각.json    : 기록 수가 줄어든 저장이 오면 덮어쓰기 전 내용을 따로 남김
+// 파일 이름은 영어로 쓴다 (한글 파일 이름을 못 쓰는 저장소가 있음)
+//
+// 안전 장치: 이 브라우저에서 처음 쓰기 전에는 폴더의 최신 파일을 먼저 "합쳐서 복원"한 뒤 쓴다.
+// 그래서 새로 설치한 빈 앱에서 저장해도 폴더의 기록을 덮어 지우지 않는다.
+// 폴더 고르기(showDirectoryPicker)를 못 하는 브라우저에서는 꺼 두고, 백업 파일 저장을 안내한다.
+App.folderBackup = (() => {
+    const STATUS_KEY = 'folderbackup.status';
+    const DB_NAME = 'records-backup';
+    const KEEP_DAYS = 90;
+    const NAMES = { 'daily-life': 'daily-life', 'books100': 'reading-life' };
+    let appName = '';
+    let exporter = null;
+    let timer = null;
+    let running = false;
+    let again = false;
+    let folder = null;          // 고른 폴더 (IndexedDB 에 보관)
+    const listeners = new Set();
+
+    const supported = () => typeof window.showDirectoryPicker === 'function' && 'indexedDB' in window;
+    const prefix = () => NAMES[appName] || appName;
+
+    // ---- 상태 (앱마다) ---------------------------------------------------
+    function readJson(key, fallback) {
+        try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch (err) { return fallback; }
+    }
+    const status = () => readJson(STATUS_KEY, {})[appName] || {};
+    function setStatus(patch) {
+        const all = readJson(STATUS_KEY, {});
+        all[appName] = { ...(all[appName] || {}), ...patch };
+        try { localStorage.setItem(STATUS_KEY, JSON.stringify(all)); } catch (err) { /* 공간 부족 */ }
+        listeners.forEach(fn => fn());
+    }
+    function onChange(fn) {
+        listeners.add(fn);
+        return () => listeners.delete(fn);
+    }
+
+    // ---- 고른 폴더 보관 (IndexedDB, 두 앱이 함께 씀) ------------------------
+    function db() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, 1);
+            req.onupgradeneeded = () => req.result.createObjectStore('kv');
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+    async function kv(mode, fn) {
+        const d = await db();
+        return new Promise((resolve, reject) => {
+            const req = fn(d.transaction('kv', mode).objectStore('kv'));
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+    async function getFolder() {
+        if (folder) return folder;
+        if (!supported()) return null;
+        try { folder = (await kv('readonly', s => s.get('folder'))) || null; } catch (err) { folder = null; }
+        return folder;
+    }
+    const connected = () => Boolean(status().folderName);
+
+    async function permission(dir) {
+        if (!dir.queryPermission) return 'granted';
+        return dir.queryPermission({ mode: 'readwrite' });
+    }
+
+    // ---- 파일 읽기·쓰기 --------------------------------------------------
+    async function writeFile(dir, name, text) {
+        const handle = await dir.getFileHandle(name, { create: true });
+        const writable = await handle.createWritable();
+        await writable.write(text);
+        await writable.close();
+    }
+    async function readFile(dir, name) {
+        try {
+            const handle = await dir.getFileHandle(name);
+            return await (await handle.getFile()).text();
+        } catch (err) {
+            return null;   // 아직 없음
+        }
+    }
+    // 백업 안의 목록(할일, 일기, 책, 일지 …) 개수
+    function countRecords(backup) {
+        const data = (backup && backup.data) || {};
+        return Object.keys(data).reduce((n, k) => n + (Array.isArray(data[k]) ? data[k].length
+            : k === 'reading' && data[k] && typeof data[k] === 'object' ? Object.keys(data[k]).length : 0), 0);
+    }
+    const pad = n => String(n).padStart(2, '0');
+    function stamp(d, withTime) {
+        const day = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        return withTime ? `${day}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}` : day;
+    }
+    async function prune(dir) {
+        if (!dir.values) return;
+        const limit = stamp(new Date(Date.now() - KEEP_DAYS * 86400000));
+        const pattern = new RegExp(`^${prefix()}-(?:before-shrink-)?(\\d{4}-\\d{2}-\\d{2})`);
+        for await (const entry of dir.values()) {
+            const m = entry.kind === 'file' && entry.name.match(pattern);
+            if (m && m[1] < limit && dir.removeEntry) await dir.removeEntry(entry.name);
+        }
+    }
+
+    // 폴더의 최신 파일을 지금 자료에 합친다. 합친 내용이 있으면 true
+    function mergeText(text) {
+        if (!text) return false;
+        let json;
+        try { json = JSON.parse(text); } catch (err) { return false; }
+        const parsed = App.store.parseBackup(json);
+        if (!parsed) return false;
+        const merged = App.store.previewMerge(parsed);
+        if (!merged.summary.changed) return false;
+        App.store.applyMerge(merged);
+        return true;
+    }
+
+    function refreshScreen() {
+        const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+        if (!typing) App.router.render();
+    }
+
+    // ---- 저장 --------------------------------------------------------------
+    async function backupNow() {
+        if (!appName || !connected()) return false;
+        if (running) { again = true; return false; }
+        running = true;
+        clearTimeout(timer);
+        timer = null;
+        try {
+            const dir = await getFolder();
+            if (!dir) throw new Error('고른 폴더를 찾지 못했어요. 폴더를 다시 골라 주세요');
+            if (await permission(dir) !== 'granted') {
+                setStatus({ pending: true, needsPermission: true, error: '폴더에 저장하도록 다시 허용해 주세요' });
+                return false;
+            }
+            const latestName = `${prefix()}-latest.json`;
+            const oldText = await readFile(dir, latestName);
+            if (!status().linked) {
+                // 이 브라우저에서 처음: 폴더의 기록을 먼저 합친다
+                if (mergeText(oldText)) {
+                    App.ui.toast('폴더에 저장된 기록을 이 앱 기록에 합쳤어요.');
+                    refreshScreen();
+                }
+                setStatus({ linked: true });
+            }
+            const now = new Date();
+            // 백업 날짜 표시도 함께 남긴다 (이 저장으로 다시 저장이 예약되지 않게 바로 지움)
+            if (App.store.markBackedUp && App.store.settings().lastBackup !== stamp(now)) {
+                App.store.markBackedUp();
+                clearTimeout(timer);
+                timer = null;
+            }
+            const backup = exporter();
+            const text = JSON.stringify(backup, null, 1);
+            if (oldText) {
+                let old = null;
+                try { old = JSON.parse(oldText); } catch (err) { /* 깨진 파일 */ }
+                if (!old || countRecords(old) > countRecords(backup)) {
+                    await writeFile(dir, `${prefix()}-before-shrink-${stamp(now, true)}.json`, oldText);
+                }
+            }
+            await writeFile(dir, latestName, text);
+            await writeFile(dir, `${prefix()}-${stamp(now)}.json`, text);
+            if (status().prunedOn !== stamp(now)) {
+                await prune(dir).catch(() => {});
+                setStatus({ prunedOn: stamp(now) });
+            }
+            setStatus({ lastOk: Date.now(), pending: false, needsPermission: false, error: '' });
+            return true;
+        } catch (err) {
+            setStatus({ pending: true, error: err.message || String(err), lastTry: Date.now() });
+            return false;
+        } finally {
+            running = false;
+            if (again) { again = false; schedule(1000); }
+        }
+    }
+
+    // 자료를 저장할 때마다 부른다 (store.save). 잇달아 저장하면 마지막 것 한 번만 쓴다.
+    function schedule(delay = 2000) {
+        if (!appName || !connected()) return;
+        if (!status().pending) setStatus({ pending: true });
+        clearTimeout(timer);
+        timer = setTimeout(backupNow, delay);
+    }
+
+    // 폴더 고르기 (버튼을 누를 때만 부를 수 있음)
+    async function chooseFolder() {
+        const dir = await window.showDirectoryPicker({ id: 'records-backup', mode: 'readwrite', startIn: 'documents' });
+        folder = dir;
+        await kv('readwrite', s => s.put(dir, 'folder'));
+        // 다른 앱(같은 탭의 책 앱 등)도 이 폴더를 쓰도록 이름을 남긴다
+        const all = readJson(STATUS_KEY, {});
+        Object.keys(NAMES).forEach(name => { all[name] = { ...(all[name] || {}), folderName: dir.name, linked: name === appName ? false : (all[name] || {}).linked && (all[name] || {}).folderName === dir.name }; });
+        try { localStorage.setItem(STATUS_KEY, JSON.stringify(all)); } catch (err) { /* 공간 부족 */ }
+        return backupNow();
+    }
+
+    // 다시 허용 (버튼을 누를 때만 부를 수 있음)
+    async function allowAgain() {
+        const dir = await getFolder();
+        if (!dir) return false;
+        if (dir.requestPermission && await dir.requestPermission({ mode: 'readwrite' }) !== 'granted') return false;
+        return backupNow();
+    }
+
+    async function stop() {
+        try { await kv('readwrite', s => s.delete('folder')); } catch (err) { /* 무시 */ }
+        folder = null;
+        localStorage.removeItem(STATUS_KEY);
+        clearTimeout(timer);
+        listeners.forEach(fn => fn());
+    }
+
+    // 폴더의 최신 파일 글자 (없으면 null)
+    async function loadText() {
+        const dir = await getFolder();
+        if (!dir) throw new Error('고른 폴더가 없어요');
+        if (await permission(dir) !== 'granted' && !(dir.requestPermission && await dir.requestPermission({ mode: 'readwrite' }) === 'granted')) {
+            throw new Error('폴더를 읽도록 허용해 주세요');
+        }
+        return readFile(dir, `${prefix()}-latest.json`);
+    }
+
+    function ago(time) {
+        const minutes = Math.round((Date.now() - time) / 60000);
+        if (minutes < 1) return '방금';
+        if (minutes < 60) return `${minutes}분 전`;
+        if (minutes < 60 * 24) return `${Math.round(minutes / 60)}시간 전`;
+        return `${Math.round(minutes / 60 / 24)}일 전`;
+    }
+
+    // 홈 화면 백업 타일에 쓸 한 줄. 꺼져 있으면 null
+    function summary() {
+        if (!connected()) return null;
+        const s = status();
+        if (s.needsPermission) return { text: '폴더 저장 허용 필요', bad: true };
+        if (s.error && s.pending) return { text: '폴더 저장 실패', bad: true };
+        if (s.lastOk) return { text: `폴더 저장 ${ago(s.lastOk)}`, bad: false, lastOk: s.lastOk };
+        return { text: '폴더 저장 대기 중', bad: false };
+    }
+
+    // 백업 화면의 "갤탭 폴더에 자동 저장" 카드. onLoaded(백업 글자)는 복원 화면을 띄운다.
+    function renderCard(box, { onLoaded }) {
+        const { escapeHtml } = App.util;
+        const { toast } = App.ui;
+
+        function render() {
+            if (!document.body.contains(box)) return;
+            if (!supported()) {
+                box.innerHTML = `
+                    <h3>갤탭 폴더에 자동 저장</h3>
+                    <p class="auto-line is-bad">이 브라우저는 탭의 폴더에 직접 쓰는 기능을 지원하지 않아요.</p>
+                    <p class="hint">아래 <b>백업 파일 저장</b>을 누르면 탭의 "내 파일 → 다운로드"에 파일로 저장돼요.
+                        하루에 한 번 저장해 두세요. 홈 화면의 백업 타일이 빨갛게 바뀌면 백업할 때예요.</p>`;
+                return;
+            }
+            const on = connected();
+            const s = status();
+            const bad = s.needsPermission || (s.error && s.pending);
+            const line = !on ? '꺼져 있어요. 저장할 폴더를 한 번 고르면 켜져요.'
+                : s.needsPermission ? '⚠️ 폴더에 저장하도록 다시 허용해 주세요.'
+                : s.error && s.pending ? `⚠️ 마지막 저장 실패: ${escapeHtml(s.error)}`
+                : s.lastOk ? `마지막 저장: ${new Date(s.lastOk).toLocaleString('ko-KR')} (${ago(s.lastOk)})`
+                : '첫 저장을 준비하고 있어요.';
+            box.innerHTML = `
+                <div class="section-head">
+                    <h3>갤탭 폴더에 자동 저장</h3>
+                    <span class="auto-state ${on ? (bad ? 'is-bad' : 'is-on') : ''}">${on ? (bad ? '확인 필요' : '켜짐') : '꺼짐'}</span>
+                </div>
+                <p class="hint">저장할 때마다 탭의 폴더에 백업 파일을 자동으로 써요. 브라우저 자료가 지워지거나 앱을 다시 설치해도
+                    폴더의 파일은 남아서 다시 불러올 수 있어요.</p>
+                <p class="auto-line ${bad ? 'is-bad' : ''}">${on ? `폴더: <b>${escapeHtml(s.folderName || '')}</b> · ` : ''}${line}</p>
+                <div class="button-row">
+                    ${!on ? '<button class="btn" data-auto="choose" type="button">저장할 폴더 고르기</button>' : ''}
+                    ${on && s.needsPermission ? '<button class="btn" data-auto="allow" type="button">다시 허용하기</button>' : ''}
+                    ${on && !s.needsPermission ? '<button class="btn btn-small" data-auto="now" type="button">지금 저장</button>' : ''}
+                    ${on ? '<button class="btn btn-small btn-outline" data-auto="load" type="button">폴더에서 불러오기</button>' : ''}
+                    ${on ? '<button class="btn-text" data-auto="choose" type="button">폴더 바꾸기</button><button class="btn-danger-text" data-auto="stop" type="button">끄기</button>' : ''}
+                </div>
+                ${!on ? `<p class="hint small">폴더 고르기 화면에서 <b>내 파일(내장 저장공간) → Documents</b> 등에 <b>새 폴더(예: 삶의기록)</b>를 만들고
+                    <b>이 폴더 사용 → 허용</b>을 누르세요. "하루 하루 삶의 기록"과 "책읽는 삶의 재미"가 같은 폴더를 함께 써요.</p>` : ''}`;
+        }
+
+        box.addEventListener('click', async event => {
+            const button = event.target.closest('[data-auto]');
+            if (!button) return;
+            const action = button.dataset.auto;
+            if (action === 'stop') {
+                const ok = await App.ui.confirmDialog({
+                    title: '폴더 자동 저장 끄기',
+                    bodyHtml: '<p>두 앱 모두 폴더 자동 저장을 꺼요. 폴더에 있는 파일은 지워지지 않아요.</p>',
+                    confirmText: '끄기'
+                });
+                if (ok) await stop();
+                render();
+                return;
+            }
+            button.disabled = true;
+            try {
+                if (action === 'choose') {
+                    toast(await chooseFolder() ? '폴더에 저장했어요. 이제 저장할 때마다 이 폴더에 자동으로 저장해요.' : `저장하지 못했어요: ${status().error}`);
+                }
+                if (action === 'allow') toast(await allowAgain() ? '다시 허용했어요. 폴더에 저장했어요.' : '허용하지 않았어요.');
+                if (action === 'now') toast(await backupNow() ? '폴더에 저장했어요.' : `저장하지 못했어요: ${status().error}`);
+                if (action === 'load') {
+                    const text = await loadText();
+                    if (!text) toast('폴더에 아직 이 앱의 저장 파일이 없어요.');
+                    else onLoaded(text);
+                }
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;   // 폴더 고르기를 취소함
+                toast(err.message || String(err));
+            } finally {
+                button.disabled = false;
+                render();
+            }
+        });
+
+        const stopListening = onChange(() => (document.body.contains(box) ? render() : stopListening()));
+        render();
+    }
+
+    // 앱 시작 때 한 번: 앱 이름과 백업 내용을 만드는 함수를 알려 준다
+    function init(name, exportFn) {
+        appName = name;
+        exporter = exportFn;
+        document.addEventListener('visibilitychange', () => {
+            // 앱을 닫거나 다른 앱으로 갈 때 기다리던 저장을 바로 한다
+            if (document.visibilityState === 'hidden' && timer) backupNow();
+        });
+        if (connected() && (status().pending || !status().linked)) setTimeout(backupNow, 1500);
+    }
+
+    return { init, schedule, backupNow, supported, connected, status, summary, onChange, renderCard };
+})();

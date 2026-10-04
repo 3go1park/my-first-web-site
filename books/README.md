@@ -12,7 +12,7 @@ books/
 ├── js/
 │   ├── core/             화면이 공통으로 쓰는 부분
 │   │   ├── util.js       날짜, 글자 처리, CSV 읽기 같은 작은 도구
-│   │   ├── cloud.js      구글 드라이브 자동 백업 (life 와 같은 파일)
+│   │   ├── folder-backup.js  갤탭 폴더 자동 저장 (life 와 같은 파일)
 │   │   ├── store.js      데이터 저장소 (책·읽기 기록·일지·백업). localStorage는 여기서만 만진다
 │   │   ├── insights.js   통계 계산 (홈과 통계 화면이 함께 씀)
 │   │   ├── ui.js         토스트 알림, 상태 표시, 진행 막대, 아이콘
@@ -101,8 +101,12 @@ main에 합쳐지면 GitHub Pages가 1~2분 안에 배포합니다.
 통계 차트는 색약 검사를 통과한 값만 씁니다 (`css/app.css`의 `--chart-*`, `--heat-*`).
 한 가지 값은 강조색(`--accent`) 하나로, 많고 적음은 같은 색의 밝기 단계로 나타냅니다.
 
-## 구글 드라이브 자동 백업
+## 갤탭 폴더 자동 저장
 
-`js/core/cloud.js`가 저장(`store.save`)할 때마다 구글 Apps Script 웹 앱(`../apps-script/drive-backup.gs`)으로
-전체 백업을 보냅니다. 설정 방법은 [`apps-script/README.md`](../apps-script/README.md).
-`cloud.js`는 두 앱(books, life)이 **똑같은 파일**을 씁니다. 고치면 두 곳을 함께 고칩니다.
+자료는 브라우저 저장 공간(localStorage)에 두고, `js/core/folder-backup.js`가 저장(`store.save`)할 때마다
+사용자가 처음 한 번 고른 탭의 폴더에 백업 파일을 자동으로 씁니다 (File System Access API `showDirectoryPicker`).
+- `daily-life-latest.json`(books는 `reading-life-…`), 날짜별 `…-YYYY-MM-DD.json`(90일), 기록 수가 줄면 `…-before-shrink-시각.json`
+- 고른 폴더는 IndexedDB(`records-backup`)에 보관하고 두 앱(books, life)이 함께 씁니다.
+- 새 브라우저(새로 설치한 앱)에서 처음 쓰기 전에는 폴더의 최신 파일을 먼저 합쳐서 복원합니다.
+- 폴더 고르기를 지원하지 않는 브라우저에서는 꺼지고, 백업 파일 저장(다운로드 폴더)을 안내합니다.
+- `folder-backup.js`는 두 앱이 **똑같은 파일**을 씁니다. 고치면 두 곳을 함께 고칩니다.

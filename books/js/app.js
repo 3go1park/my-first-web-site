@@ -1,8 +1,10 @@
 // 앱 시작: 화면 전환을 켜고, 홈 화면 설치·오프라인용 서비스 워커를 등록한다.
 App.router.start();
 
-// 구글 드라이브 자동 백업 (설정했을 때만 동작)
-App.cloud.init('books100', () => App.store.exportData());
+// 갤탭 폴더 자동 저장 (폴더를 골랐을 때만 동작)
+App.folderBackup.init('books100', () => App.store.exportData());
+// 예전 구글 드라이브 자동 백업 설정은 더 쓰지 않으므로 지운다 (웹 앱 주소·비밀 키)
+['cloudbackup.settings', 'cloudbackup.status'].forEach(key => localStorage.removeItem(key));
 
 // 저장 공간이 부족해도 브라우저가 이 앱 자료를 스스로 지우지 않도록 요청한다
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
