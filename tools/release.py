@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """새 버전 준비: 파일 주소의 ?v= 번호와 서비스 워커 캐시 번호를 올리고,
-오프라인용 파일 목록(sw.js의 FILES)을 books 폴더의 실제 파일로 다시 만든다.
+오프라인용 파일 목록(sw.js의 FILES)을 앱 폴더의 실제 파일로 다시 만든다.
 
-사용법 (저장소 맨 위 폴더에서):
-    python3 tools/release.py          # 번호를 1 올림
-    python3 tools/release.py --check  # 바꾸지 않고 확인만 (빠진 파일이 있으면 실패)
+사용법 (저장소 맨 위 폴더에서). 앱 폴더를 적지 않으면 books:
+    python3 tools/release.py               # books 번호를 1 올림
+    python3 tools/release.py life          # life(하루 하루 삶의 기록) 번호를 1 올림
+    python3 tools/release.py life --check  # 바꾸지 않고 확인만 (빠진 파일이 있으면 실패)
 """
 import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent / 'books'
+APPS = ('books', 'life')
+ROOT = pathlib.Path(__file__).resolve().parent.parent / next((a for a in sys.argv[1:] if a in APPS), 'books')
 INDEX = ROOT / 'index.html'
 SW = ROOT / 'sw.js'
+CACHE_NAME = r"(const CACHE = '[a-z0-9]+-v)(\d+)"
 SKIP_DIRS = {'tools'}
 SKIP_FILES = {'sw.js', 'README.md'}
 
@@ -47,7 +50,7 @@ def main():
     expected = app_files()
     if check:
         current_list = re.findall(r"'([^']+)'", listed.group(1)) if listed else []
-        sw_version = int(re.search(r"books100-v(\d+)", sw).group(1))
+        sw_version = int(re.search(CACHE_NAME, sw).group(2))
         problems = []
         if current_list != expected:
             problems.append('sw.js의 FILES 목록이 실제 파일과 달라요')
@@ -63,7 +66,7 @@ def main():
     file_lines = ',\n'.join(f"    '{f}'" for f in expected)
     sw = re.sub(r'// FILES:START\n.*?// FILES:END',
                 lambda m: f'// FILES:START\n{file_lines}\n    // FILES:END', sw, flags=re.S)
-    sw = re.sub(r"books100-v\d+", f'books100-v{nxt}', sw)
+    sw = re.sub(CACHE_NAME, lambda m: f'{m.group(1)}{nxt}', sw)
     INDEX.write_text(index, encoding='utf-8')
     SW.write_text(sw, encoding='utf-8')
     print(f'v{current} → v{nxt}, 오프라인 파일 {len(expected)}개')
