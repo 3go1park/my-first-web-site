@@ -59,11 +59,21 @@ App.store = (() => {
         };
     }
 
+    // 저장된 자료는 어떤 경우에도 지우지 않는다.
+    // 모양이 달라도(예전·나중 버전) 읽을 수 있는 칸은 살려서 쓰고,
+    // 아예 읽을 수 없으면 원래 글자를 따로 보관(KEY + '.broken.시각')한 뒤 빈 상태로 시작한다.
     function load() {
         const raw = localStorage.getItem(KEY);
         let saved = null;
         try { saved = raw ? JSON.parse(raw) : null; } catch (err) { saved = null; }
-        data = saved && saved.schema === SCHEMA ? complete(saved) : empty();
+        if (saved && typeof saved === 'object') {
+            data = complete(saved);
+        } else {
+            if (raw) {
+                try { localStorage.setItem(`${KEY}.broken.${Date.now()}`, raw); } catch (err) { /* 공간 부족 */ }
+            }
+            data = empty();
+        }
         lastRaw = raw;
     }
 
