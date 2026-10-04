@@ -301,6 +301,11 @@ h3 { font-size: 21px; }
 .menu-tile.needs-backup { border: 2px solid var(--danger); }
 .menu-tile.needs-backup .tile-note { color: var(--danger); }
 
+.install-banner { flex-direction: row; align-items: center; gap: 18px; padding: 18px 24px; border: 2px solid var(--accent); }
+.install-banner img { border-radius: 14px; flex: none; }
+.install-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.install-text strong { font-size: 19px; }
+
 /* 할일 등록 */
 .todo-layout { display: grid; grid-template-columns: 1.35fr 1fr; gap: 22px; align-items: start; }
 .occ-row { display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid var(--line); }
