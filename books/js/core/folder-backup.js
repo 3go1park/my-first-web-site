@@ -107,8 +107,10 @@ App.folderBackup = (() => {
 
     async function permission(dir) {
         if (!dir.queryPermission) return 'granted';
-        return dir.queryPermission({ mode: 'readwrite' });
+        try { return await dir.queryPermission({ mode: 'readwrite' }); } catch (err) { return 'prompt'; }
     }
+    // 권한 때문에 실패한 것인지 (폴더 쓰기를 다시 허용해야 함)
+    const isPermissionError = err => err && ['NotAllowedError', 'SecurityError'].includes(err.name);
 
     // ---- 파일 읽기·쓰기 --------------------------------------------------
     async function writeFile(dir, name, text) {
@@ -122,6 +124,7 @@ App.folderBackup = (() => {
             const handle = await dir.getFileHandle(name);
             return await (await handle.getFile()).text();
         } catch (err) {
+            if (isPermissionError(err)) throw err;
             return null;   // 아직 없음
         }
     }
@@ -174,10 +177,9 @@ App.folderBackup = (() => {
         try {
             const dir = await getFolder();
             if (!dir) throw new Error('고른 폴더를 찾지 못했어요. 폴더를 다시 골라 주세요');
-            if (await permission(dir) !== 'granted') {
-                setStatus({ pending: true, needsPermission: true, error: '폴더에 저장하도록 다시 허용해 주세요' });
-                return false;
-            }
+            // 브라우저가 "다시 물어봄" 상태라고 해도 실제로는 쓸 수 있는 경우가 있어 일단 써 본다.
+            // 권한 때문에 실패하면 그때 "다시 허용하기"를 안내한다.
+            await permission(dir);
             const latestName = `${prefix()}-latest.json`;
             const oldText = await readFile(dir, latestName);
             if (!status().linked) {
@@ -210,10 +212,14 @@ App.folderBackup = (() => {
                 await prune(dir).catch(() => {});
                 setStatus({ prunedOn: stamp(now) });
             }
-            setStatus({ lastOk: Date.now(), pending: false, needsPermission: false, error: '' });
+            setStatus({ lastOk: Date.now(), pending: false, needsPermission: false, needsRepick: false, error: '' });
             return true;
         } catch (err) {
-            setStatus({ pending: true, error: err.message || String(err), lastTry: Date.now() });
+            if (isPermissionError(err)) {
+                setStatus({ pending: true, needsPermission: true, error: '폴더에 저장하도록 다시 허용해 주세요', lastTry: Date.now() });
+            } else {
+                setStatus({ pending: true, error: `${err.name || ''} ${err.message || err}`.trim(), lastTry: Date.now() });
+            }
             return false;
         } finally {
             running = false;
@@ -248,10 +254,18 @@ App.folderBackup = (() => {
     }
 
     // 다시 허용 (버튼을 누를 때만 부를 수 있음)
+    // 버튼을 누른 그 순간에만 브라우저가 허용 창을 띄워 준다. 그래서 다른 기다림 없이 바로 묻는다.
+    // 허용 창을 못 띄우는 브라우저면 같은 폴더를 다시 고르게 한다 (고르면 권한이 다시 생김).
     async function allowAgain() {
-        const dir = await getFolder();
-        if (!dir) return false;
-        if (dir.requestPermission && await dir.requestPermission({ mode: 'readwrite' }) !== 'granted') return false;
+        const dir = folder || await getFolder();
+        if (!dir) return chooseFolder();
+        if (!dir.requestPermission) return chooseFolder();
+        let result = 'denied';
+        try { result = await dir.requestPermission({ mode: 'readwrite' }); } catch (err) { result = 'denied'; }
+        if (result !== 'granted') {
+            setStatus({ needsPermission: true, needsRepick: true });
+            return false;
+        }
         return backupNow();
     }
 
@@ -268,10 +282,15 @@ App.folderBackup = (() => {
     async function loadText() {
         const dir = await getFolder();
         if (!dir) throw new Error('고른 폴더가 없어요');
-        if (await permission(dir) !== 'granted' && !(dir.requestPermission && await dir.requestPermission({ mode: 'readwrite' }) === 'granted')) {
-            throw new Error('폴더를 읽도록 허용해 주세요');
+        if (await permission(dir) !== 'granted' && dir.requestPermission) {
+            try { await dir.requestPermission({ mode: 'readwrite' }); } catch (err) { /* 그래도 읽어 본다 */ }
         }
-        return readFile(dir, `${prefix()}-latest.json`);
+        try {
+            return await readFile(dir, `${prefix()}-latest.json`);
+        } catch (err) {
+            setStatus({ needsPermission: true, needsRepick: true });
+            throw new Error('폴더를 읽을 권한이 없어요. "같은 폴더 다시 고르기"를 눌러 주세요');
+        }
     }
 
     function ago(time) {
@@ -335,7 +354,8 @@ App.folderBackup = (() => {
             const s = status();
             const bad = s.needsPermission || (s.error && s.pending);
             const line = !on ? '꺼져 있어요. 저장할 폴더를 한 번 고르면 켜져요.'
-                : s.needsPermission ? '⚠️ 폴더에 저장하도록 다시 허용해 주세요.'
+                : s.needsRepick ? `⚠️ 허용 창이 뜨지 않았어요. <b>같은 폴더 다시 고르기</b>를 눌러 "${escapeHtml(s.folderName || '')}" 폴더를 한 번 더 골라 주세요. 기록은 그대로예요.`
+                : s.needsPermission ? '⚠️ 폴더에 저장하도록 다시 허용해 주세요. 아래 버튼을 누르고 <b>허용</b>을 눌러 주세요.'
                 : s.error && s.pending ? `⚠️ 마지막 저장 실패: ${escapeHtml(s.error)}`
                 : s.lastOk ? `마지막 저장: ${new Date(s.lastOk).toLocaleString('ko-KR')} (${ago(s.lastOk)})`
                 : '첫 저장을 준비하고 있어요.';
@@ -349,7 +369,8 @@ App.folderBackup = (() => {
                 <p class="auto-line ${bad ? 'is-bad' : ''}">${on ? `폴더: <b>${escapeHtml(s.folderName || '')}</b> · ` : ''}${line}</p>
                 <div class="button-row">
                     ${!on ? '<button class="btn" data-auto="choose" type="button">저장할 폴더 고르기</button>' : ''}
-                    ${on && s.needsPermission ? '<button class="btn" data-auto="allow" type="button">다시 허용하기</button>' : ''}
+                    ${on && s.needsPermission && !s.needsRepick ? '<button class="btn" data-auto="allow" type="button">다시 허용하기</button>' : ''}
+                    ${on && s.needsRepick ? '<button class="btn" data-auto="choose" type="button">같은 폴더 다시 고르기</button>' : ''}
                     ${on && !s.needsPermission ? '<button class="btn btn-small" data-auto="now" type="button">지금 저장</button>' : ''}
                     ${on ? '<button class="btn btn-small btn-outline" data-auto="load" type="button">폴더에서 불러오기</button>' : ''}
                     ${on ? '<button class="btn-text" data-auto="choose" type="button">폴더 바꾸기</button><button class="btn-danger-text" data-auto="stop" type="button">끄기</button>' : ''}
@@ -390,7 +411,11 @@ App.folderBackup = (() => {
                 if (action === 'choose') {
                     toast(await chooseFolder() ? '폴더에 저장했어요. 이제 저장할 때마다 이 폴더에 자동으로 저장해요.' : `저장하지 못했어요: ${status().error}`);
                 }
-                if (action === 'allow') toast(await allowAgain() ? '다시 허용했어요. 폴더에 저장했어요.' : '허용하지 않았어요.');
+                if (action === 'allow') {
+                    const ok = await allowAgain();
+                    toast(ok ? '다시 허용했어요. 폴더에 저장했어요.'
+                        : status().needsRepick ? '같은 폴더 다시 고르기를 눌러 주세요.' : `저장하지 못했어요: ${status().error}`);
+                }
                 if (action === 'now') toast(await backupNow() ? '폴더에 저장했어요.' : `저장하지 못했어요: ${status().error}`);
                 if (action === 'load') {
                     const text = await loadText();
