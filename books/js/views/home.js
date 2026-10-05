@@ -12,7 +12,7 @@ App.route('/', {
         const streak = insights.currentStreak();
         const todayEntries = insights.entriesByDay().get(today()) || 0;
         const lastBackup = store.settings().lastBackup;
-        const auto = App.folderBackup.summary();
+        const auto = App.folderBackup ? App.folderBackup.summary() : null;   // 업데이트 중 파일을 못 읽었어도 홈은 그린다
         const needsBackup = auto ? auto.bad || !auto.lastOk
             : books.length > 0 && (!lastBackup || daysBetween(lastBackup, today()) >= 7);
 

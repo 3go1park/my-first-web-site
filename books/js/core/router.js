@@ -20,6 +20,7 @@ App.route = (pattern, view) => {
 
 App.router = (() => {
     const SCROLL_KEY = 'readinglife.scroll';
+    const RELOAD_KEY = 'readinglife.errorReload';
     let current = null;
 
     function parse() {
@@ -84,8 +85,17 @@ App.router = (() => {
             view.render(el, ctx);
         } catch (err) {
             console.error(err);
-            el.innerHTML = App.ui.emptyState('화면을 그리다 문제가 생겼어요. 홈으로 돌아가 다시 시도해 주세요.',
-                '<a class="btn btn-outline" href="#/">홈으로</a>');
+            // 새 버전으로 바뀌는 중에 파일 하나를 못 읽으면 생길 수 있다 → 한 번은 저절로 새로고침
+            let reloaded = 0;
+            try { reloaded = Number(sessionStorage.getItem(RELOAD_KEY)) || 0; } catch (e) { /* 무시 */ }
+            if (Date.now() - reloaded > 60000) {
+                try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch (e) { /* 무시 */ }
+                location.reload();
+                return;
+            }
+            el.innerHTML = App.ui.emptyState(`화면을 그리다 문제가 생겼어요. 기록은 지워지지 않았어요.
+                인터넷에 연결된 상태에서 <b>새로고침</b>을 눌러 주세요.<br><small>오류 내용: ${App.util.escapeHtml(err && err.message)}</small>`,
+                '<button class="btn" type="button" onclick="location.reload()">새로고침</button><a class="btn btn-outline" href="#/">홈으로</a>');
         }
         window.scrollTo(0, App.ui.consumeHighlight(el) ? window.scrollY : savedScroll(hash));
         App.ui.showPendingToast();

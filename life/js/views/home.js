@@ -24,7 +24,7 @@ App.route('/', {
         const diary = store.diaryOn(now);
         const lastBackup = store.settings().lastBackup;
         const hasData = store.todos().length + store.diary().length > 0;
-        const auto = App.folderBackup.summary();
+        const auto = App.folderBackup ? App.folderBackup.summary() : null;   // 업데이트 중 파일을 못 읽었어도 홈은 그린다
         const needsBackup = auto ? auto.bad || !auto.lastOk
             : hasData && (!lastBackup || daysBetween(lastBackup, now) >= 7);
         const lunarText = App.lunar.label(now);
