@@ -84,5 +84,6 @@ main에 합쳐지면 GitHub Pages가 1~2분 안에 배포합니다.
 - `daily-life-latest.json`(books는 `reading-life-…`), 날짜별 `…-YYYY-MM-DD.json`(90일), 기록 수가 줄면 `…-before-shrink-시각.json`
 - 고른 폴더는 IndexedDB(`records-backup`)에 보관하고 두 앱(books, life)이 함께 씁니다.
 - 새 브라우저(새로 설치한 앱)에서 처음 쓰기 전에는 폴더의 최신 파일을 먼저 합쳐서 복원합니다.
-- 폴더 고르기를 지원하지 않는 브라우저에서는 꺼지고, 백업 파일 저장(다운로드 폴더)을 안내합니다.
+- 폴더 고르기를 못 하면 "저장할 때마다 다운로드 폴더에 백업 파일 받기"(`downloadbackup.on`)를 켤 수 있습니다.
+  저장 5초 뒤 `…-backup-YYYY-MM-DD-HHMMSS.json`을 내려받습니다 (덮어쓰지 못해 파일이 쌓임).
 - `folder-backup.js`는 두 앱이 **똑같은 파일**을 씁니다. 고치면 두 곳을 함께 고칩니다.

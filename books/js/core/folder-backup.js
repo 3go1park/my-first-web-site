@@ -10,9 +10,11 @@
 //
 // 안전 장치: 이 브라우저에서 처음 쓰기 전에는 폴더의 최신 파일을 먼저 "합쳐서 복원"한 뒤 쓴다.
 // 그래서 새로 설치한 빈 앱에서 저장해도 폴더의 기록을 덮어 지우지 않는다.
-// 폴더 고르기(showDirectoryPicker)를 못 하는 브라우저에서는 꺼 두고, 백업 파일 저장을 안내한다.
+// 폴더 고르기(showDirectoryPicker)를 못 하는 브라우저에서는 대신 "저장할 때마다 다운로드 폴더에
+// 백업 파일 받기"를 켤 수 있다 (다운로드는 덮어쓰지 못해 파일이 쌓이므로 폴더 저장을 먼저 권한다).
 App.folderBackup = (() => {
     const STATUS_KEY = 'folderbackup.status';
+    const DOWNLOAD_KEY = 'downloadbackup.on';    // 다운로드 자동 저장 켜짐 (두 앱이 함께 씀)
     const DB_NAME = 'records-backup';
     const KEEP_DAYS = 90;
     const NAMES = { 'daily-life': 'daily-life', 'books100': 'reading-life' };
@@ -67,6 +69,41 @@ App.folderBackup = (() => {
         return folder;
     }
     const connected = () => Boolean(status().folderName);
+    const downloadOn = () => !connected() && localStorage.getItem(DOWNLOAD_KEY) === '1';
+
+    function setDownload(on) {
+        if (on) localStorage.setItem(DOWNLOAD_KEY, '1');
+        else localStorage.removeItem(DOWNLOAD_KEY);
+        listeners.forEach(fn => fn());
+    }
+
+    // 다운로드 폴더에 백업 파일 받기 (예: daily-life-backup-2026-10-05-143012.json)
+    function downloadNow() {
+        clearTimeout(timer);
+        timer = null;
+        try {
+            const now = new Date();
+            if (App.store.markBackedUp && App.store.settings().lastBackup !== stamp(now)) {
+                App.store.markBackedUp();   // 이 저장으로 다시 받기가 예약되지 않게 바로 지운다
+                clearTimeout(timer);
+                timer = null;
+            }
+            const blob = new Blob([JSON.stringify(exporter(), null, 1)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${prefix()}-backup-${stamp(now, true)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            setStatus({ lastDownload: Date.now(), pending: false });
+            return true;
+        } catch (err) {
+            setStatus({ pending: true, error: err.message || String(err) });
+            return false;
+        }
+    }
 
     async function permission(dir) {
         if (!dir.queryPermission) return 'granted';
@@ -186,6 +223,12 @@ App.folderBackup = (() => {
 
     // 자료를 저장할 때마다 부른다 (store.save). 잇달아 저장하면 마지막 것 한 번만 쓴다.
     function schedule(delay = 2000) {
+        if (appName && downloadOn()) {
+            // 잇달아 고치는 동안은 기다렸다가 마지막에 한 번만 받는다
+            clearTimeout(timer);
+            timer = setTimeout(downloadNow, 5000);
+            return;
+        }
         if (!appName || !connected()) return;
         if (!status().pending) setStatus({ pending: true });
         clearTimeout(timer);
@@ -213,6 +256,7 @@ App.folderBackup = (() => {
     }
 
     async function stop() {
+        localStorage.removeItem(DOWNLOAD_KEY);
         try { await kv('readwrite', s => s.delete('folder')); } catch (err) { /* 무시 */ }
         folder = null;
         localStorage.removeItem(STATUS_KEY);
@@ -240,6 +284,10 @@ App.folderBackup = (() => {
 
     // 홈 화면 백업 타일에 쓸 한 줄. 꺼져 있으면 null
     function summary() {
+        if (downloadOn()) {
+            const last = status().lastDownload;
+            return last ? { text: `자동 다운로드 ${ago(last)}`, bad: false, lastOk: last } : { text: '자동 다운로드 대기 중', bad: false };
+        }
         if (!connected()) return null;
         const s = status();
         if (s.needsPermission) return { text: '폴더 저장 허용 필요', bad: true };
@@ -253,14 +301,34 @@ App.folderBackup = (() => {
         const { escapeHtml } = App.util;
         const { toast } = App.ui;
 
+        // 폴더 저장을 못 하거나 꺼져 있을 때: 저장할 때마다 다운로드 폴더에 백업 파일 받기
+        function downloadHtml() {
+            const on = downloadOn();
+            const last = status().lastDownload;
+            return `
+                <div class="auto-download">
+                    <div class="section-head">
+                        <h4>저장할 때마다 다운로드 폴더에 백업 파일 받기</h4>
+                        <span class="auto-state ${on ? 'is-on' : ''}">${on ? '켜짐' : '꺼짐'}</span>
+                    </div>
+                    <p class="hint small">저장하고 몇 초 뒤 "내 파일 → 다운로드"에 백업 파일을 받아요.
+                        다운로드는 덮어쓰지 못해서 <b>저장할 때마다 파일이 하나씩 쌓여요</b> (가끔 오래된 것을 지워 주세요).
+                        처음에 크롬이 "여러 파일 다운로드"를 물어보면 <b>허용</b>을 눌러 주세요.</p>
+                    ${on && last ? `<p class="auto-line">마지막으로 받은 때: ${new Date(last).toLocaleString('ko-KR')} (${ago(last)})</p>` : ''}
+                    <div class="button-row">
+                        ${on ? '<button class="btn btn-small" data-auto="download-now" type="button">지금 받기</button><button class="btn-danger-text" data-auto="download-off" type="button">끄기</button>'
+                            : '<button class="btn btn-small btn-outline" data-auto="download-on" type="button">켜기</button>'}
+                    </div>
+                </div>`;
+        }
+
         function render() {
             if (!document.body.contains(box)) return;
             if (!supported()) {
                 box.innerHTML = `
-                    <h3>갤탭 폴더에 자동 저장</h3>
-                    <p class="auto-line is-bad">이 브라우저는 탭의 폴더에 직접 쓰는 기능을 지원하지 않아요.</p>
-                    <p class="hint">아래 <b>백업 파일 저장</b>을 누르면 탭의 "내 파일 → 다운로드"에 파일로 저장돼요.
-                        하루에 한 번 저장해 두세요. 홈 화면의 백업 타일이 빨갛게 바뀌면 백업할 때예요.</p>`;
+                    <h3>갤탭에 자동 저장</h3>
+                    <p class="auto-line">이 브라우저는 탭의 폴더를 골라 직접 쓰는 기능을 지원하지 않아요. 대신 아래 방법을 켜 두세요.</p>
+                    ${downloadHtml()}`;
                 return;
             }
             const on = connected();
@@ -287,7 +355,8 @@ App.folderBackup = (() => {
                     ${on ? '<button class="btn-text" data-auto="choose" type="button">폴더 바꾸기</button><button class="btn-danger-text" data-auto="stop" type="button">끄기</button>' : ''}
                 </div>
                 ${!on ? `<p class="hint small">폴더 고르기 화면에서 <b>내 파일(내장 저장공간) → Documents</b> 등에 <b>새 폴더(예: 삶의기록)</b>를 만들고
-                    <b>이 폴더 사용 → 허용</b>을 누르세요. "하루 하루 삶의 기록"과 "책읽는 삶의 재미"가 같은 폴더를 함께 써요.</p>` : ''}`;
+                    <b>이 폴더 사용 → 허용</b>을 누르세요. "하루 하루 삶의 기록"과 "책읽는 삶의 재미"가 같은 폴더를 함께 써요.</p>` : ''}
+                ${!on ? `<details class="auto-more"${downloadOn() ? ' open' : ''}><summary>폴더 고르기가 안 되나요?</summary>${downloadHtml()}</details>` : ''}`;
         }
 
         box.addEventListener('click', async event => {
@@ -301,6 +370,18 @@ App.folderBackup = (() => {
                     confirmText: '끄기'
                 });
                 if (ok) await stop();
+                render();
+                return;
+            }
+            if (action === 'download-on') {
+                setDownload(true);
+                toast(downloadNow() ? '켰어요. 지금 백업 파일을 받았어요. 다운로드 폴더를 확인해 주세요.' : '백업 파일을 받지 못했어요.');
+                render();
+                return;
+            }
+            if (action === 'download-off') { setDownload(false); render(); return; }
+            if (action === 'download-now') {
+                toast(downloadNow() ? '백업 파일을 받았어요. 다운로드 폴더를 확인해 주세요.' : '백업 파일을 받지 못했어요.');
                 render();
                 return;
             }
@@ -335,7 +416,10 @@ App.folderBackup = (() => {
         exporter = exportFn;
         document.addEventListener('visibilitychange', () => {
             // 앱을 닫거나 다른 앱으로 갈 때 기다리던 저장을 바로 한다
-            if (document.visibilityState === 'hidden' && timer) backupNow();
+            if (document.visibilityState === 'hidden' && timer) {
+                if (downloadOn()) downloadNow();
+                else backupNow();
+            }
         });
         if (connected() && (status().pending || !status().linked)) setTimeout(backupNow, 1500);
     }
