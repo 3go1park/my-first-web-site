@@ -12,8 +12,8 @@ App.route('/', {
         const streak = insights.currentStreak();
         const todayEntries = insights.entriesByDay().get(today()) || 0;
         const lastBackup = store.settings().lastBackup;
-        const cloud = App.cloud.summary();
-        const needsBackup = cloud ? cloud.bad || !cloud.lastOk
+        const auto = App.folderBackup.summary();
+        const needsBackup = auto ? auto.bad || !auto.lastOk
             : books.length > 0 && (!lastBackup || daysBetween(lastBackup, today()) >= 7);
 
         const summary = books.length
@@ -100,7 +100,7 @@ App.route('/', {
                     <h2 class="group-title">관리</h2>
                     <div class="menu-grid">
                         ${tile('#/backup', 'save', '백업 · 복원',
-                            cloud ? cloud.text : lastBackup ? `마지막 백업 ${relativeDay(lastBackup)}` : '백업한 적 없음',
+                            auto ? auto.text : lastBackup ? `마지막 백업 ${relativeDay(lastBackup)}` : '백업한 적 없음',
                             needsBackup ? 'needs-backup' : '')}
                         ${tile('#/install', 'phone', '홈 화면 아이콘', App.install.isStandalone() ? '앱으로 실행 중' : '설치·다시 등록')}
                     </div>

@@ -24,8 +24,8 @@ App.route('/', {
         const diary = store.diaryOn(now);
         const lastBackup = store.settings().lastBackup;
         const hasData = store.todos().length + store.diary().length > 0;
-        const cloud = App.cloud.summary();
-        const needsBackup = cloud ? cloud.bad || !cloud.lastOk
+        const auto = App.folderBackup.summary();
+        const needsBackup = auto ? auto.bad || !auto.lastOk
             : hasData && (!lastBackup || daysBetween(lastBackup, now) >= 7);
         const lunarText = App.lunar.label(now);
 
@@ -101,7 +101,7 @@ App.route('/', {
                     <h2 class="group-title">관리</h2>
                     <div class="menu-grid">
                         ${tile('#/backup', 'save', '백업 · 복원',
-                            cloud ? cloud.text : lastBackup ? `마지막 백업 ${relativeDay(lastBackup)}` : '백업한 적 없음',
+                            auto ? auto.text : lastBackup ? `마지막 백업 ${relativeDay(lastBackup)}` : '백업한 적 없음',
                             needsBackup ? 'needs-backup' : '')}
                         ${tile('#/install', 'phone', '홈 화면 아이콘', App.install.isStandalone() ? '앱으로 실행 중' : '설치·다시 등록')}
                     </div>

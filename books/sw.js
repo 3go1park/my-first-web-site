@@ -1,7 +1,7 @@
 // 네트워크를 먼저 쓰고, 인터넷이 없을 때만 저장해 둔 파일로 화면을 연다.
 // 브라우저 캐시(GitHub Pages는 10분)에 남은 옛 파일이 섞이지 않도록 매번 서버에 최신인지 확인한다.
 // CACHE 번호와 FILES 목록은 tools/release.py 가 자동으로 고친다. 직접 고치지 않는다.
-const CACHE = 'books100-v21';
+const CACHE = 'books100-v23';
 const FILES = [
     // FILES:START
     './',
@@ -14,7 +14,7 @@ const FILES = [
     'index.html',
     'journal.html',
     'js/app.js',
-    'js/core/cloud.js',
+    'js/core/folder-backup.js',
     'js/core/insights.js',
     'js/core/install.js',
     'js/core/ocr.js',
