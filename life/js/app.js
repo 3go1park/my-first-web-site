@@ -2,7 +2,7 @@
 App.router.start();
 
 // 갤탭 폴더 자동 저장 (폴더를 골랐을 때만 동작)
-App.folderBackup.init('daily-life', () => App.store.exportData());
+if (App.folderBackup) App.folderBackup.init('daily-life', () => App.store.exportData());
 // 예전 구글 드라이브 자동 백업 설정은 더 쓰지 않으므로 지운다 (웹 앱 주소·비밀 키)
 ['cloudbackup.settings', 'cloudbackup.status'].forEach(key => localStorage.removeItem(key));
 

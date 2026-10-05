@@ -172,7 +172,11 @@ App.route('/backup', {
         }
 
         // 갤탭 폴더 자동 저장 카드. "폴더에서 불러오기"는 파일 복원과 같은 화면으로
-        App.folderBackup.renderCard(el.querySelector('#auto-card'), {
+        if (!App.folderBackup) {
+            el.querySelector('#auto-card').innerHTML = `<h3>갤탭에 자동 저장</h3>
+                <p class="hint">자동 저장 기능을 불러오지 못했어요. 인터넷에 연결된 상태에서 새로고침해 주세요.</p>
+                <div class="button-row"><button class="btn btn-small" type="button" onclick="location.reload()">새로고침</button></div>`;
+        } else App.folderBackup.renderCard(el.querySelector('#auto-card'), {
             onLoaded(text) {
                 message.hidden = true;
                 showPlan(text, t => { message.textContent = t; message.hidden = false; });
