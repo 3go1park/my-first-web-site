@@ -3,7 +3,7 @@ App.route('/', {
     title: '',
     render(el) {
         const { escapeHtml, today, formatDay, daysBetween, relativeDay } = App.util;
-        const { icon, statusBadge, checkButton, bindChecks, toast } = App.ui;
+        const { icon, statusBadge, checkButton, bindChecks, toast, subtaskList, subProgress } = App.ui;
         const store = App.store;
         const sch = App.schedule;
         const now = today();
@@ -30,13 +30,16 @@ App.route('/', {
         const lunarText = App.lunar.label(now);
 
         const todoRow = ({ o, state }) => `
-            <li class="today-row" data-id="${o.todo.id}">
+            <li class="today-item" data-id="${o.todo.id}">
+              <div class="today-row">
                 ${checkButton(o)}
                 <a class="today-main" href="#/todo/${o.todo.id}/edit?from=home">
-                    <strong class="${o.result ? 'is-done-text' : ''}">${escapeHtml(o.todo.title)}</strong>
+                    <strong class="${o.result ? 'is-done-text' : ''}">${escapeHtml(o.todo.title)} ${subProgress(o)}</strong>
                     <small>${o.status === 'late' ? `${relativeDay(o.end)} 마감` : o.end !== o.start ? `~ ${formatDay(o.end)}` : sch.repeatText(o.todo)}${state.overdue && o.status !== 'late' ? ` · 지연 ${state.overdue}회` : ''}</small>
                 </a>
                 ${statusBadge(o.status)}
+              </div>
+              ${subtaskList(o)}
             </li>`;
 
         const tile = (href, iconName, label, note = '', extra = '') =>

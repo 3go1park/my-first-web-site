@@ -4,7 +4,7 @@ App.route('/todos', {
     back: '/',
     render(el, ctx) {
         const { escapeHtml, today, formatDay, formatDate, startOfWeek, addDays, startOfMonth, endOfMonth } = App.util;
-        const { statusBadge, checkButton, bindChecks, emptyState, icon, toast } = App.ui;
+        const { statusBadge, checkButton, bindChecks, emptyState, icon, toast, subtaskList, subProgress } = App.ui;
         const store = App.store;
         const sch = App.schedule;
         const FILTER_KEY = 'dailylife.todoFilter';
@@ -124,14 +124,14 @@ App.route('/todos', {
                 <li><a class="todo-row" href="#/todo/${t.id}/edit" data-id="${t.id}">
                     <span>${canCheck ? checkButton(o) : '<span class="todo-check is-waiting" aria-hidden="true"></span>'}</span>
                     <span class="col-title">
-                        <strong class="${state.status === 'done' ? 'is-done-text' : ''}">${escapeHtml(t.title)}</strong>
+                        <strong class="${state.status === 'done' ? 'is-done-text' : ''}">${escapeHtml(t.title)} ${subProgress(o)}</strong>
                         <small class="col-date-inline">${range}</small>
                         <small>${escapeHtml(t.memo) || (repeating ? `완료 ${state.doneCount}회 · 미완료 ${state.missedCount}회` : '')}</small>
                     </span>
                     <span class="col-date">${repeating ? '<small>이번 회차</small> ' : ''}${range}</span>
                     <span class="col-repeat">${repeating ? icon('repeat') : ''}${sch.repeatText(t)}</span>
                     <span class="col-status">${statusBadge(state.status)}${state.overdue && state.status !== 'late' ? `<small class="late-text">지연 ${state.overdue}회</small>` : ''}</span>
-                </a></li>`;
+                </a>${subtaskList(o)}</li>`;
             }).join('');
             $('#no-match').hidden = shown.length > 0;
 
