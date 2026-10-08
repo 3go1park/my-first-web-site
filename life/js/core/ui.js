@@ -103,9 +103,43 @@ App.ui = (() => {
         });
     }
 
-    // 목록 안의 결과 버튼을 누르면 완료/미완료를 고르고 화면을 다시 그린다
+    // 하위 항목 체크 목록 (그 회차의 것). 아직 시작 전인 회차는 보기만 한다
+    function subtaskList(o, { readonly = false } = {}) {
+        const subs = o.todo.subtasks || [];
+        if (!subs.length) return '';
+        const map = (o.todo.subDone && o.todo.subDone[o.start]) || {};
+        const locked = readonly || o.start > App.util.today();
+        return `<ul class="sub-list">${subs.map(st => {
+            const on = Boolean(map[st.id]);
+            return `<li><button type="button" class="sub-item ${on ? 'is-on' : ''}" ${locked ? 'disabled' : ''}
+                data-sub="${o.todo.id}" data-start="${o.start}" data-sub-id="${st.id}" aria-pressed="${on}">
+                <span class="sub-box" aria-hidden="true">${on ? '✓' : ''}</span><span class="sub-title">${escapeHtml(st.title)}</span></button></li>`;
+        }).join('')}</ul>`;
+    }
+
+    // "2/4" 처럼 하위 항목 진행
+    function subProgress(o) {
+        return o.sub && o.sub.total ? `<span class="sub-progress ${o.sub.done === o.sub.total ? 'is-full' : ''}">${o.sub.done}/${o.sub.total}</span>` : '';
+    }
+
+    // 목록 안의 결과 버튼을 누르면 완료/미완료를 고르고 화면을 다시 그린다.
+    // 하위 항목 체크 버튼도 여기서 처리한다.
     function bindChecks(root, after) {
         root.addEventListener('click', async event => {
+            const sub = event.target.closest('[data-sub]');
+            if (sub) {
+                event.preventDefault();
+                event.stopPropagation();
+                const t = App.store.todo(sub.dataset.sub);
+                if (!t) return;
+                const checked = sub.getAttribute('aria-pressed') !== 'true';
+                const change = App.store.setSubDone(t.id, sub.dataset.start, sub.dataset.subId, checked);
+                if (change === 'completed') toast(`하위 항목을 모두 끝냈어요. '${t.title}' 완료!`);
+                if (change === 'reopened') toast(`'${t.title}'의 완료를 풀었어요.`);
+                if (after) after();
+                else App.router.render();
+                return;
+            }
             const button = event.target.closest('[data-check]');
             if (!button) return;
             event.preventDefault();
@@ -188,7 +222,7 @@ App.ui = (() => {
     }
 
     return {
-        setTopBar, toast, showPendingToast, highlight, consumeHighlight, pendingHighlight, statusBadge, checkButton, bindChecks,
+        setTopBar, toast, showPendingToast, highlight, consumeHighlight, pendingHighlight, subtaskList, subProgress, statusBadge, checkButton, bindChecks,
         emptyState, progressBar, icon, confirmDialog
     };
 })();

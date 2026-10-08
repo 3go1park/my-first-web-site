@@ -1,11 +1,12 @@
-// 통계: 할일(상태·완료율·날짜별 완료·할일별 완료율)과 일기(편수·연속 기록·월별·기분)
+// 통계: 할일(리마인더처럼 요약 타일·오늘 진행 링·하위 항목 진행·완료율·날짜별 완료·할일별 완료율)과
+//       일기(편수·연속 기록·월별·기분)
 // 차트 색: 한 가지 값은 강조색 하나. "완료/못 함" 두 값은 강조색과 옅은 색 + 범례로 구분한다.
 App.route('/stats', {
     title: '통계',
     back: '/',
     render(el) {
-        const { escapeHtml, today, formatShort, startOfMonth } = App.util;
-        const { emptyState, statusBadge } = App.ui;
+        const { escapeHtml, today, formatShort, startOfMonth, addDays } = App.util;
+        const { emptyState, statusBadge, icon } = App.ui;
         const store = App.store;
         const sch = App.schedule;
         const ins = App.insights;
@@ -31,6 +32,36 @@ App.route('/stats', {
         const thisMonth = diaries.filter(d => d.date >= startOfMonth(today())).length;
         const avgLength = diaries.length ? Math.round(diaries.reduce((n, d) => n + d.content.length, 0) / diaries.length) : 0;
 
+        // 리마인더처럼: 오늘 · 예정 · 전체 · 완료 · 지연 · 미완료
+        const now = today();
+        const monthStart = startOfMonth(now);
+        const upcoming = store.todos().flatMap(t => sch.occurrencesIn(t, addDays(now, 1), addDays(now, 7)).filter(o => o.start > now));
+        const monthOcc = store.todos().flatMap(t => sch.occurrencesIn(t, monthStart, now).filter(o => o.start >= monthStart || o.end >= monthStart));
+        const doneMonth = monthOcc.filter(o => o.done).length;
+        const missedMonth = monthOcc.filter(o => o.missed).length;
+        const smart = [
+            { key: 'today', label: '오늘', value: todayList.length, note: `${todayDone}개 완료`, href: '#/', icon: 'calendar' },
+            { key: 'upcoming', label: '예정', value: upcoming.length, note: '앞으로 7일', href: '#/todos?status=before', icon: 'repeat' },
+            { key: 'all', label: '전체', value: totalTodos, note: `반복 ${store.todos().filter(t => t.repeat !== 'none').length}개`, href: '#/todos?status=all', icon: 'list' },
+            { key: 'done', label: '완료', value: doneMonth, note: '이번 달', href: '#/todos?status=done', icon: 'check' },
+            { key: 'late', label: '지연', value: counts.late, note: counts.late ? '지금 밀린 할일' : '밀린 일 없음', href: '#/todos?status=late', icon: 'chart' },
+            { key: 'missed', label: '미완료', value: missedMonth, note: '이번 달', href: '#/todos?status=missed', icon: 'pen' }
+        ];
+        const ring = (done, total) => {
+            const p = total ? done / total : 0;
+            const c = 2 * Math.PI * 52;
+            return `<svg class="ring" viewBox="0 0 128 128" role="img" aria-label="오늘 ${total}개 중 ${done}개 완료">
+                <circle cx="64" cy="64" r="52" class="ring-track"/>
+                ${p > 0 ? `<circle cx="64" cy="64" r="52" class="ring-fill" stroke-dasharray="${(c * p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 64 64)"/>` : ''}
+                <text x="64" y="62" text-anchor="middle" class="ring-value">${total ? Math.round(p * 100) : 0}%</text>
+                <text x="64" y="84" text-anchor="middle" class="ring-label">${done}/${total}</text></svg>`;
+        };
+        // 하위 항목이 있는 할일: 지금 회차의 진행
+        const subRows = store.todos().filter(t => (t.subtasks || []).length).map(t => {
+            const o = sch.occurrence(t, sch.stateOf(t).focus.start);
+            return { t, o, percent: Math.round(o.sub.done / o.sub.total * 100) };
+        }).sort((a, b) => b.percent - a.percent);
+
         const tile = (label, value, note = '') => `
             <div class="stat-card"><span class="stat-label">${label}</span><strong class="stat-value">${value}</strong>${note ? `<span class="stat-note">${note}</span>` : ''}</div>`;
         const percentText = r => (r.percent === null ? '—' : `${r.percent}%`);
@@ -38,6 +69,32 @@ App.route('/stats', {
 
         el.innerHTML = `
             <h2 class="group-title">할일</h2>
+            <section class="smart-grid">
+                ${smart.map(x => `
+                    <a class="smart-tile tone-${x.key}" href="${x.href}">
+                        <span class="smart-icon">${icon(x.icon)}</span>
+                        <strong class="smart-value">${x.value}</strong>
+                        <span class="smart-label">${x.label}</span>
+                        <small class="smart-note">${x.note}</small>
+                    </a>`).join('')}
+            </section>
+            <section class="stats-row">
+                <div class="card ring-card">
+                    <span class="stat-label">오늘 진행</span>
+                    ${ring(todayDone, todayList.length)}
+                    <p class="hint small">${todayList.length ? `오늘 할일 ${todayList.length}개 중 ${todayDone}개 완료` : '오늘은 할일이 없어요'}</p>
+                </div>
+                <div class="card sub-stats">
+                    <span class="stat-label">하위 항목 진행 <span class="hint small">(지금 회차)</span></span>
+                    ${subRows.length ? `<div class="genre-meters">${subRows.slice(0, 8).map(x => `
+                        <a class="genre-row" href="#/todo/${x.t.id}/edit">
+                            <span class="genre-name">${escapeHtml(x.t.title)}</span>
+                            ${meter(x.percent, `${x.t.title} ${x.percent}%`)}
+                            <span class="genre-value">${x.o.sub.done}/${x.o.sub.total}</span>
+                        </a>`).join('')}</div>`
+                        : '<p class="hint">하위 항목이 있는 할일이 없어요. 할일 등록에서 하위 항목을 넣어 보세요.</p>'}
+                </div>
+            </section>
             <section class="stats-top">
                 <div class="card hero-card">
                     <span class="stat-label">최근 30일 완료율</span>
@@ -49,10 +106,10 @@ App.route('/stats', {
                     </div>
                 </div>
                 <div class="stat-grid">
-                    ${tile('등록한 할일', `${totalTodos}개`, `반복 ${store.todos().filter(t => t.repeat !== 'none').length}개`)}
-                    ${tile('지금 지연', `${counts.late}개`, counts.late ? '할일 내역에서 확인하세요' : '밀린 일이 없어요')}
                     ${tile('최근 7일 완료율', percentText(rate7), `${rate7.total}회 중 ${rate7.done}회`)}
-                    ${tile('오늘 할일', `${todayDone}/${todayList.length}`, todayList.length ? '오늘 걸친 회차 중 완료' : '오늘은 할일이 없어요')}
+                    ${tile('이번 달 완료', `${doneMonth}회`, `미완료 ${missedMonth}회`)}
+                    ${tile('하위 항목 있는 할일', `${subRows.length}개`, subRows.length ? `다 끝낸 것 ${subRows.filter(x => x.percent === 100).length}개` : '')}
+                    ${tile('지금 지연', `${counts.late}개`, counts.late ? '할일 내역에서 확인하세요' : '밀린 일이 없어요')}
                 </div>
             </section>
 

@@ -4,7 +4,8 @@
 // 저장 모양 (schema 1)
 // {
 //   schema: 1,
-//   todos:   [{ id, title, memo, start, end, repeat, weekdays, endless, calendar, done, missed, createdAt, updatedAt }],
+//   todos:   [{ id, title, memo, start, end, repeat, weekdays, endless, calendar, done, missed,
+//              subtasks, subDone, createdAt, updatedAt }],
 //   diary:   [{ id, date, mood, content, createdAt, updatedAt }],
 //   settings:{ lastBackup },
 //   deleted: { todos: {id: 지운 시각}, diary: {id: 시각} }
@@ -13,6 +14,7 @@
 //       반복하면 시작일~종료일 사이에 반복 (endless = true 면 종료일 없이 계속),
 //       calendar = 'solar'(양력) | 'lunar'(음력),
 //       done = { [회차 시작일]: 완료한 시각 }, missed = { [회차 시작일]: 미완료로 끝낸 시각 }
+//       subtasks = [{ id, title }] 하위 항목, subDone = { [회차 시작일]: { [하위 항목 id]: 체크한 시각 } }
 //       (예전 모양은 count = 반복 횟수였다. 읽을 때 fromOldTodo 로 바꾼다)
 // 일기는 하루에 하나. updatedAt 과 deleted 는 "합쳐서 복원"할 때 어느 쪽이 최신인지 가리는 데 쓴다.
 App.store = (() => {
@@ -80,6 +82,11 @@ App.store = (() => {
             calendar: raw.calendar === 'lunar' ? 'lunar' : 'solar',
             done: { ...(base.done || {}) },
             missed: { ...(base.missed || {}) },
+            subtasks: (Array.isArray(raw.subtasks) ? raw.subtasks : [])
+                .map(st => ({ id: String(st.id || uid()), title: String(st.title || '').trim() }))
+                .filter(st => st.title)
+                .slice(0, 100),
+            subDone: JSON.parse(JSON.stringify(base.subDone || {})),
             createdAt: base.createdAt || Date.now(),
             updatedAt: base.updatedAt || Date.now()
         };
@@ -151,6 +158,31 @@ App.store = (() => {
         if (result === 'missed') t.missed[occStart] = Date.now();
         t.updatedAt = Date.now();
         save();
+    }
+
+    // 하위 항목 체크 (회차마다 따로). 모두 체크하면 그 회차를 완료로, 하나라도 풀면 자동 완료를 되돌린다.
+    // 돌려주는 값: 'completed'(방금 모두 끝나 완료됨) | 'reopened'(완료가 풀림) | ''
+    function setSubDone(id, occStart, subId, checked) {
+        sync();
+        const t = todo(id);
+        if (!t) return '';
+        const map = { ...(t.subDone[occStart] || {}) };
+        if (checked) map[subId] = Date.now();
+        else delete map[subId];
+        t.subDone[occStart] = map;
+        const all = t.subtasks.length > 0 && t.subtasks.every(st => map[st.id]);
+        let change = '';
+        if (all && !t.done[occStart]) {
+            t.done[occStart] = Date.now();
+            delete t.missed[occStart];
+            change = 'completed';
+        } else if (!all && t.done[occStart]) {
+            delete t.done[occStart];
+            change = 'reopened';
+        }
+        t.updatedAt = Date.now();
+        save();
+        return change;
     }
 
     // 여러 회차를 한 번에 미완료로 끝낸다 (밀린 지연 정리)
@@ -317,7 +349,7 @@ App.store = (() => {
     load();
 
     return {
-        todos, todo, saveTodo, deleteTodo, setDone, setResult, markMissed,
+        todos, todo, saveTodo, deleteTodo, setDone, setResult, markMissed, setSubDone,
         diary, diaryEntry, diaryOn, saveDiary, deleteDiary,
         settings, exportData, markBackedUp, parseBackup, restore, previewMerge, applyMerge, sync
     };

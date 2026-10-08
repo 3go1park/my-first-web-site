@@ -4,7 +4,7 @@
 
     function render(el, ctx) {
         const { escapeHtml, today, formatDay, weekday, addDays, addMonths, daysBetween, WEEKDAYS } = App.util;
-        const { toast, statusBadge, checkButton, bindChecks, confirmDialog, highlight } = App.ui;
+        const { toast, statusBadge, checkButton, bindChecks, confirmDialog, highlight, subtaskList, subProgress } = App.ui;
         const store = App.store;
         const sch = App.schedule;
         const lunar = App.lunar;
@@ -17,7 +17,9 @@
         }
         const now = today();
         const start = App.util.isDate(ctx.query.get('date')) ? ctx.query.get('date') : now;
-        const t = old || { title: '', memo: '', start, end: start, repeat: 'none', weekdays: [], endless: false, calendar: 'solar' };
+        const t = old || { title: '', memo: '', start, end: start, repeat: 'none', weekdays: [], endless: false, calendar: 'solar', subtasks: [] };
+        // 하위 항목 (화면에서 고치는 중인 목록)
+        let subs = (t.subtasks || []).map(st => ({ ...st }));
         const radio = (name, value, label, checked) =>
             `<label class="seg"><input type="radio" name="${name}" value="${value}" ${checked ? 'checked' : ''}><span>${label}</span></label>`;
 
@@ -30,6 +32,18 @@
                     <label class="field">메모 <span class="hint small">(적지 않아도 돼요)</span>
                         <textarea id="memo" rows="2" placeholder="자세한 내용">${escapeHtml(t.memo)}</textarea>
                     </label>
+
+                    <div class="field">하위 항목 <span class="hint small">(할일 안의 작은 항목. 각각 체크하고, 모두 끝내면 할일이 완료돼요)</span>
+                        <ol id="sub-editor" class="sub-editor"></ol>
+                        <div class="sub-add">
+                            <input id="sub-new" type="text" maxlength="100" placeholder="항목을 적고 추가 (예: 이력서 보내기)" autocomplete="off">
+                            <button id="sub-add" class="btn btn-small btn-outline" type="button">추가</button>
+                        </div>
+                        <div class="sub-quick">
+                            <input id="sub-count" type="number" min="2" max="50" inputmode="numeric" value="${(t.title.match(/(\d+)\s*회/) || [])[1] || 4}" aria-label="몇 회">
+                            <button id="sub-make" class="btn-text" type="button">1회 ~ N회 항목 만들기</button>
+                        </div>
+                    </div>
 
                     <div class="field">반복
                         <div class="seg-group">
@@ -75,6 +89,7 @@
                     </div>
                     <p id="summary" class="hint"></p>
                     <div id="overdue-bar" class="overdue-bar" hidden></div>
+                    <div id="current-subs" class="current-subs" hidden></div>
                     <div id="preview"></div>
                 </section>
             </form>`;
@@ -100,9 +115,62 @@
                 endless: repeat !== 'none' && $('#endless').checked,
                 calendar: value('calendar') || 'solar',
                 done: saved ? saved.done : {},
-                missed: saved ? saved.missed : {}
+                missed: saved ? saved.missed : {},
+                subtasks: subs.filter(st => st.title.trim()).map(st => ({ id: st.id, title: st.title.trim() })),
+                subDone: saved ? saved.subDone : {}
             };
         }
+
+        // 하위 항목 편집 목록
+        function renderSubs() {
+            $('#sub-editor').innerHTML = subs.map((st, i) => `
+                <li class="sub-edit-row">
+                    <span class="sub-no">${i + 1}</span>
+                    <input type="text" maxlength="100" value="${escapeHtml(st.title)}" data-sub-edit="${i}" aria-label="하위 항목 ${i + 1}">
+                    <button type="button" class="btn-text danger" data-sub-del="${i}" aria-label="지우기">지우기</button>
+                </li>`).join('');
+        }
+        function addSub(title) {
+            const text = title.trim();
+            if (!text) return;
+            subs.push({ id: App.util.uid(), title: text });
+            renderSubs();
+            refresh();
+        }
+        $('#sub-add').addEventListener('click', () => {
+            addSub($('#sub-new').value);
+            $('#sub-new').value = '';
+            $('#sub-new').focus();
+        });
+        $('#sub-new').addEventListener('keydown', event => {
+            if (event.key !== 'Enter' || event.isComposing) return;
+            event.preventDefault();
+            $('#sub-add').click();
+        });
+        $('#sub-make').addEventListener('click', () => {
+            const n = Math.max(2, Math.min(50, parseInt($('#sub-count').value, 10) || 0));
+            if (!n) return;
+            for (let i = 1; i <= n; i++) subs.push({ id: App.util.uid(), title: `${i}회` });
+            renderSubs();
+            refresh();
+            toast(`하위 항목 1회 ~ ${n}회를 만들었어요.`);
+        });
+        $('#sub-editor').addEventListener('input', event => {
+            const i = event.target.dataset.subEdit;
+            if (i === undefined) return;
+            subs[Number(i)].title = event.target.value;
+        });
+        // 하위 항목 칸에서 Enter 를 눌러도 할일이 저장되지 않게 한다
+        $('#sub-editor').addEventListener('keydown', event => {
+            if (event.key === 'Enter') event.preventDefault();
+        });
+        $('#sub-editor').addEventListener('click', event => {
+            const del = event.target.closest('[data-sub-del]');
+            if (!del) return;
+            subs.splice(Number(del.dataset.subDel), 1);
+            renderSubs();
+            refresh();
+        });
 
         function refresh() {
             const c = current();
@@ -142,6 +210,7 @@
                 <li class="occ-row">
                     ${old && o.start <= now ? checkButton(o) : '<span class="occ-dot"></span>'}
                     <span class="occ-date">${formatDay(o.start)}${o.end !== o.start ? ` ~ ${formatDay(o.end)}` : ''}${showLunar ? `<small>${lunar.label(o.start)}</small>` : ''}</span>
+                    ${subProgress(o)}
                     ${statusBadge(o.status)}
                 </li>`;
             $('#preview').innerHTML = `
@@ -154,6 +223,13 @@
             if (old) {
                 const state = sch.stateOf(c);
                 $('#state').innerHTML = statusBadge(state.status);
+                // 이번 회차의 하위 항목 체크 (저장한 하위 항목 기준)
+                const savedTodo = store.todo(old.id);
+                const focus = savedTodo.subtasks.length ? sch.occurrence(savedTodo, state.focus.start) : null;
+                $('#current-subs').hidden = !focus;
+                $('#current-subs').innerHTML = focus
+                    ? `<p class="occ-head">${formatDay(focus.start)} 하위 항목 ${subProgress(focus)}</p>${subtaskList(focus)}`
+                    : '';
                 $('#overdue-bar').hidden = !state.overdue;
                 $('#overdue-bar').innerHTML = state.overdue ? `
                     <span>결과를 표시하지 않고 지난 회차가 <b>${state.overdue}개</b> 있어요.</span>
@@ -189,9 +265,12 @@
             $('#endless').checked = false;
             refresh();
         });
-        form.addEventListener('input', refresh);
+        form.addEventListener('input', event => {
+            if (event.target.dataset.subEdit === undefined && event.target.id !== 'sub-new') refresh();
+        });
         if (old) {
             bindChecks($('#preview'), refresh);
+            bindChecks($('#current-subs'), refresh);
             $('#overdue-bar').addEventListener('click', async event => {
                 if (!event.target.closest('#close-overdue')) return;
                 const starts = sch.occurrences(store.todo(old.id), now).filter(o => o.end < now && !o.result).map(o => o.start);
@@ -254,6 +333,7 @@
         } else {
             $('#title').focus();
         }
+        renderSubs();
         refresh();
     }
 

@@ -101,7 +101,10 @@ App.schedule = (() => {
         const end = t.repeat === 'none' ? t.end : start;
         const result = resultOf(t, start);
         const status = result || (now < start ? 'before' : now > end ? 'late' : 'doing');
-        return { todo: t, start, end, result, done: result === 'done', missed: result === 'missed', status };
+        const subs = t.subtasks || [];
+        const subMap = (t.subDone && t.subDone[start]) || {};
+        const sub = { total: subs.length, done: subs.filter(st => subMap[st.id]).length };
+        return { todo: t, start, end, result, done: result === 'done', missed: result === 'missed', status, sub };
     }
 
     // until 까지 시작하는 회차들

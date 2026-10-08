@@ -59,11 +59,12 @@
         // 넣었는지는 일기 글에 그 줄이 있는지로 판단한다 (직접 지워도 맞게 보인다).
         let shown = [];
         const doneOf = o => o.done;
-        const lineOf = o => (doneOf(o) ? `✓ ${o.todo.title} (완료)` : `✕ ${o.todo.title} (미완료)`);
+        const subText = o => (o.sub && o.sub.total ? `, ${o.sub.done}/${o.sub.total}` : '');
+        const lineOf = o => (doneOf(o) ? `✓ ${o.todo.title} (완료${subText(o)})` : `✕ ${o.todo.title} (미완료${subText(o)})`);
         // 예전 모양의 줄도 같은 할일로 본다 (✓ 제목 / ✕ 제목 (미완료) / · 제목 (상태))
         const isLineOf = (line, o) => {
             const t = o.todo.title;
-            return line === `✓ ${t}` || line === `✓ ${t} (완료)` || line === `✕ ${t} (미완료)` || line.startsWith(`· ${t} (`);
+            return line === `✓ ${t}` || [`✓ ${t} (`, `✕ ${t} (`, `· ${t} (`].some(p => line.startsWith(p));
         };
         const isTodoLine = line => /^(✓|✕|·) /.test(line);
         // 일기 맨 앞의 할일 줄 묶음과 나머지 글로 나눈다
@@ -103,7 +104,7 @@
                         <li class="summary-item ${on ? 'is-picked' : ''}">
                             <button type="button" class="pick-todo" data-pick="${i}" aria-pressed="${on}">
                                 <span class="pick-box" aria-hidden="true">${on ? '✓' : ''}</span>
-                                <span>${escapeHtml(o.todo.title)}</span>
+                                <span>${escapeHtml(o.todo.title)} ${App.ui.subProgress(o)}</span>
                             </button>
                             ${statusBadge(doneOf(o) ? 'done' : 'missed')}
                         </li>`;
