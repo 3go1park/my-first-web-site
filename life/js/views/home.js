@@ -56,8 +56,12 @@ App.route('/', {
                 <section class="card home-section">
                     <div class="section-head">
                         <h2 class="group-title">오늘 할 일</h2>
-                        <a class="btn btn-small btn-outline" href="#/todos/new">+ 할일 등록</a>
+                        <a class="btn btn-small btn-outline" href="#/todos/new?from=home">자세히 등록</a>
                     </div>
+                    <form id="quick-add" class="quick-add">
+                        <input id="quick-title" type="text" maxlength="200" placeholder="오늘 할 일을 바로 적고 추가하세요" autocomplete="off" aria-label="오늘 할 일">
+                        <button class="btn btn-small" type="submit">추가</button>
+                    </form>
                     ${todayList.length
                         ? `<ol class="today-list">${todayList.slice(0, 8).map(todoRow).join('')}</ol>
                            ${todayList.length > 8 ? `<a class="text-link" href="#/todos">할일 ${todayList.length}개 모두 보기</a>` : ''}`
@@ -109,6 +113,22 @@ App.route('/', {
             </div>`;
 
         bindChecks(el);
+
+        // 오늘 하루짜리 할일(반복 없음)을 바로 등록한다
+        el.querySelector('#quick-add').addEventListener('submit', event => {
+            event.preventDefault();
+            const title = el.querySelector('#quick-title').value.trim();
+            if (!title) {
+                el.querySelector('#quick-title').focus();
+                return;
+            }
+            const saved = store.saveTodo({ title, start: now, end: now, repeat: 'none' });
+            toast(`'${saved.title}'을(를) 오늘 할 일에 추가했어요.`, { next: true });
+            App.ui.highlight(saved.id);
+            App.router.render();
+            const input = document.querySelector('#quick-title');
+            if (input) input.focus();
+        });
 
         // 홈 화면 앱으로 실행 중이 아니면 바로 설치할 수 있게 알려 준다
         const install = App.install;
