@@ -503,6 +503,10 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
 .auto-download h4 { font-size: 18px; }
 .auto-more summary { min-height: 44px; display: flex; align-items: center; font-size: 17px; font-weight: 700; color: var(--accent); cursor: pointer; }
 
+.native-prompt { flex-direction: row; align-items: center; gap: 18px; padding: 18px 24px; border: 2px solid var(--accent); }
+.native-text { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.native-text strong { font-size: 19px; }
+
 /* 5. 좁은 화면 (세로로 든 탭) ----------------------------------------------- */
 @media (max-width: 999px) {
     .page { padding: 20px 24px 40px; }

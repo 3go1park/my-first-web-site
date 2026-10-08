@@ -496,6 +496,10 @@ a.todo-row:active { background: var(--line); }
 .form-meta { align-items: center; gap: 12px; }
 .draft-note { flex: 1; font-size: 15px; font-weight: 700; color: var(--accent); }
 
+.native-prompt { flex-direction: row; align-items: center; gap: 18px; padding: 18px 24px; border: 2px solid var(--accent); }
+.native-text { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.native-text strong { font-size: 19px; }
+
 /* 5. 좁은 화면 (세로로 든 탭) ----------------------------------------------- */
 @media (max-width: 999px) {
     .page { padding: 20px 20px 40px; }

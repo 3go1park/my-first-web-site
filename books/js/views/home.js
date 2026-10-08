@@ -65,6 +65,7 @@ App.route('/', {
                 <h1>책읽는 삶의 재미</h1>
                 <p class="lead">${summary}</p>
             </header>
+            <div id="native-prompt"></div>
 
             <section class="home-section">
                 <div class="section-head">
@@ -106,5 +107,6 @@ App.route('/', {
                     </div>
                 </section>
             </div>`;
+        if (App.folderBackup) App.folderBackup.renderNativePrompt(el.querySelector('#native-prompt'));
     }
 });

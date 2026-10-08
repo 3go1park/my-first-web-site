@@ -1,0 +1,56 @@
+# 안드로이드 앱(APK) 만들기
+# - 이 브랜치나 main 에 앱 파일이 바뀌어 올라오면 GitHub 이 APK 두 개를 만든다.
+#   daily-life.apk (하루 하루 삶의 기록), reading-life.apk (책읽는 삶의 재미)
+# - main 에서 만든 것은 릴리스 "apk" 에 올려, 탭에서 아래 주소로 바로 받을 수 있다.
+#   https://github.com/3go1park/my-first-web-site/releases/latest/download/daily-life.apk
+name: Android APK
+
+on:
+  push:
+    branches: [main, ccr-29c0f780-aj2pgv]
+    paths: ['android/**', 'life/**', 'books/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: APK 만들기
+        run: gradle -p android assembleRelease --no-daemon --stacktrace
+
+      - name: 파일 이름 정리
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/life/release/app-life-release.apk out/daily-life.apk
+          cp android/app/build/outputs/apk/books/release/app-books-release.apk out/reading-life.apk
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: out/*.apk
+
+      - name: 릴리스에 올리기 (main 만)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk out/daily-life.apk out/reading-life.apk \
+            --title "안드로이드 앱 (빌드 ${{ github.run_number }})" \
+            --notes "갤탭에서 daily-life.apk(하루 하루 삶의 기록), reading-life.apk(책읽는 삶의 재미)를 받아 설치하세요." \
+            --latest

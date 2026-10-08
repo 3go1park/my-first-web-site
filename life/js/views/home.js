@@ -51,6 +51,7 @@ App.route('/', {
             </header>
 
             <div id="install-banner"></div>
+            <div id="native-prompt"></div>
 
             <div class="home-today">
                 <section class="card home-section">
@@ -162,5 +163,6 @@ App.route('/', {
             else stop();
         });
         renderBanner();
+        if (App.folderBackup) App.folderBackup.renderNativePrompt(el.querySelector('#native-prompt'));
     }
 });

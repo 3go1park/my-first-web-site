@@ -1,0 +1,70 @@
+// 웹앱(../../life, ../../books)을 그대로 넣은 안드로이드 앱. 앱마다 따로 APK 를 만든다.
+//   life  → "하루 하루 삶의 기록"  (com.threego1park.dailylife)
+//   books → "책읽는 삶의 재미"     (com.threego1park.readinglife)
+plugins {
+    id 'com.android.application'
+}
+
+// GitHub Actions 에서 만들 때마다 번호가 올라가야 탭에서 새 버전으로 덮어 설치된다
+def buildNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
+android {
+    namespace 'com.threego1park.records'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 29
+        targetSdk 34
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+    }
+
+    // 업데이트할 때 같은 서명이어야 기록을 지우지 않고 덮어 설치된다. 그래서 서명 열쇠를 저장소에 둔다.
+    signingConfigs {
+        release {
+            storeFile file('release.keystore')
+            storePassword 'haruharu-records'
+            keyAlias 'records'
+            keyPassword 'haruharu-records'
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    flavorDimensions 'app'
+    productFlavors {
+        life {
+            dimension 'app'
+            applicationId 'com.threego1park.dailylife'
+            resValue 'string', 'app_name', '하루 하루 삶의 기록'
+        }
+        books {
+            dimension 'app'
+            applicationId 'com.threego1park.readinglife'
+            resValue 'string', 'app_name', '책읽는 삶의 재미'
+        }
+    }
+
+    sourceSets {
+        life { assets.srcDirs = ['../../life'] }
+        books { assets.srcDirs = ['../../books'] }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.documentfile:documentfile:1.0.1'
+}

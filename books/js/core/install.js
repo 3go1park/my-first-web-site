@@ -21,6 +21,7 @@ App.install = (() => {
 
     // 홈 화면 아이콘으로 열어서 주소창 없이 실행 중인지
     function isStandalone() {
+        if (window.AndroidBridge) return true;   // 안드로이드 앱(APK) 안
         return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     }
 
