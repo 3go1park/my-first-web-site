@@ -153,6 +153,17 @@ App.store = (() => {
         save();
     }
 
+    // 여러 회차를 한 번에 미완료로 끝낸다 (밀린 지연 정리)
+    function markMissed(id, starts) {
+        sync();
+        const t = todo(id);
+        if (!t || !starts.length) return;
+        const at = Date.now();
+        starts.forEach(s => { if (!t.done[s]) t.missed[s] = at; });
+        t.updatedAt = at;
+        save();
+    }
+
     // 예전 이름 (완료/완료 취소)
     const setDone = (id, occStart, done) => setResult(id, occStart, done ? 'done' : '');
 
@@ -306,7 +317,7 @@ App.store = (() => {
     load();
 
     return {
-        todos, todo, saveTodo, deleteTodo, setDone, setResult,
+        todos, todo, saveTodo, deleteTodo, setDone, setResult, markMissed,
         diary, diaryEntry, diaryOn, saveDiary, deleteDiary,
         settings, exportData, markBackedUp, parseBackup, restore, previewMerge, applyMerge, sync
     };

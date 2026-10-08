@@ -123,7 +123,20 @@ App.schedule = (() => {
     //   오늘이 걸친 회차가 있으면 → 그 회차의 결과(완료/미완료), 없으면 진행
     //   없으면 → 결과 없이 지난 회차가 있으면 지연, 다음 회차가 있으면 진행전, 다 끝났으면 마지막 결과
     // focus: 목록에서 결과를 표시할 회차, overdue: 결과 없이 지난 회차 수
+    const stateCache = new Map();
     function stateOf(t, now = today()) {
+        // 저장된 할일은 고칠 때마다 updatedAt 이 바뀌므로 그것으로 기억한다 (미리보기는 매번 계산)
+        const key = t.updatedAt ? `${t.id}|${t.updatedAt}|${now}` : '';
+        if (key && stateCache.has(key)) return stateCache.get(key);
+        const state = computeState(t, now);
+        if (key) {
+            if (stateCache.size > 500) stateCache.clear();
+            stateCache.set(key, state);
+        }
+        return state;
+    }
+
+    function computeState(t, now) {
         const list = occurrences(t, now, 1, now);
         const past = list.filter(o => o.end < now);
         const covering = list.filter(o => o.start <= now && o.end >= now);

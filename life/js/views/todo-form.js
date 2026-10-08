@@ -74,6 +74,7 @@
                         <span id="state"></span>
                     </div>
                     <p id="summary" class="hint"></p>
+                    <div id="overdue-bar" class="overdue-bar" hidden></div>
                     <div id="preview"></div>
                 </section>
             </form>`;
@@ -153,6 +154,10 @@
             if (old) {
                 const state = sch.stateOf(c);
                 $('#state').innerHTML = statusBadge(state.status);
+                $('#overdue-bar').hidden = !state.overdue;
+                $('#overdue-bar').innerHTML = state.overdue ? `
+                    <span>결과를 표시하지 않고 지난 회차가 <b>${state.overdue}개</b> 있어요.</span>
+                    <button id="close-overdue" class="btn btn-small btn-outline" type="button">모두 미완료로 끝내기</button>` : '';
                 if (repeating) $('#summary').textContent += ` · 완료 ${state.doneCount}회 · 미완료 ${state.missedCount}회${state.overdue ? ` · 지연 ${state.overdue}회` : ''}`;
             }
         }
@@ -185,7 +190,23 @@
             refresh();
         });
         form.addEventListener('input', refresh);
-        if (old) bindChecks($('#preview'), refresh);
+        if (old) {
+            bindChecks($('#preview'), refresh);
+            $('#overdue-bar').addEventListener('click', async event => {
+                if (!event.target.closest('#close-overdue')) return;
+                const starts = sch.occurrences(store.todo(old.id), now).filter(o => o.end < now && !o.result).map(o => o.start);
+                const ok = await confirmDialog({
+                    title: '지연된 회차 정리',
+                    bodyHtml: `<p>결과 없이 지난 <b>${starts.length}개</b> 회차를 모두 <b>미완료</b>로 끝낼까요?</p>
+                        <p class="hint">나중에 회차마다 다시 완료로 바꿀 수 있어요.</p>`,
+                    confirmText: '미완료로 끝내기'
+                });
+                if (!ok) return;
+                store.markMissed(old.id, starts);
+                toast(`${starts.length}개 회차를 미완료로 끝냈어요.`);
+                refresh();
+            });
+        }
 
         form.addEventListener('submit', event => {
             event.preventDefault();

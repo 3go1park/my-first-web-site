@@ -40,7 +40,11 @@
                 <label class="field">일기
                     <textarea id="content" rows="12" placeholder="오늘 있었던 일, 느낀 점, 고마운 일을 적어 보세요.">${escapeHtml(old ? old.content : '')}</textarea>
                 </label>
-                <div class="form-meta"><span id="length" class="hint small"></span></div>
+                <div class="form-meta">
+                    <p id="draft-note" class="draft-note" hidden>저장하지 않고 나갔던 글을 되살렸어요.
+                        <button id="draft-drop" class="btn-text" type="button">되살린 글 버리기</button></p>
+                    <span id="length" class="hint small"></span>
+                </div>
                 <p id="message" class="message error" hidden></p>
                 <div class="form-actions">
                     <button class="btn btn-primary" type="submit">${old ? '고친 내용 저장' : '일기 저장'}</button>
@@ -137,6 +141,51 @@
             if (event.target.closest('#pick-insert')) insertPicked();
         });
 
+        // 쓰던 글 임시 보관: 저장하지 않고 화면을 벗어나거나 앱이 닫혀도 다음에 되살린다
+        const DRAFT_KEY = 'dailylife.diaryDraft';
+        const draftId = old ? `id:${old.id}` : 'new';
+        const savedContent = old ? old.content : '';
+        const savedMood = old ? old.mood || '' : '';
+        const readDrafts = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || {}; } catch (err) { return {}; } };
+        const writeDrafts = drafts => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts)); } catch (err) { /* 공간 부족 */ } };
+        const currentMood = () => ($('#form').querySelector('[name="mood"]:checked') || {}).value || '';
+        let draftTimer = null;
+        function keepDraft() {
+            clearTimeout(draftTimer);
+            draftTimer = setTimeout(() => {
+                const drafts = readDrafts();
+                const content = $('#content').value;
+                if (content.trim() === savedContent.trim() && currentMood() === savedMood) delete drafts[draftId];
+                else drafts[draftId] = { content, mood: currentMood(), date: dateInput.value, at: Date.now() };
+                writeDrafts(drafts);
+            }, 400);
+        }
+        function dropDraft() {
+            clearTimeout(draftTimer);
+            const drafts = readDrafts();
+            delete drafts[draftId];
+            writeDrafts(drafts);
+        }
+        const draft = readDrafts()[draftId];
+        if (draft && (draft.content.trim() !== savedContent.trim() || (draft.mood || '') !== savedMood)) {
+            $('#content').value = draft.content;
+            const radio = $('#form').querySelector(`[name="mood"][value="${draft.mood}"]`);
+            if (radio) radio.checked = true;
+            if (!old && App.util.isDate(draft.date) && !store.diaryOn(draft.date)) dateInput.value = draft.date;
+            $('#draft-note').hidden = false;
+        }
+        $('#draft-drop').addEventListener('click', () => {
+            dropDraft();
+            $('#content').value = savedContent;
+            $('#form').querySelectorAll('[name="mood"]').forEach(r => { r.checked = r.value === savedMood; });
+            $('#draft-note').hidden = true;
+            renderLength();
+        });
+        $('#form').addEventListener('input', keepDraft);
+        $('#form').addEventListener('change', keepDraft);
+        // 일기 맨 앞에 할일을 넣은 것도 임시 보관한다
+        $('#todo-summary').addEventListener('click', () => setTimeout(keepDraft, 0));
+
         function renderLength() {
             const n = $('#content').value.trim().length;
             $('#length').textContent = n ? `${n.toLocaleString()}자` : '';
@@ -194,6 +243,7 @@
                 if (!ok) return;
             }
             const saved = store.saveDiary({ date: d, content, mood }, old && old.id);
+            dropDraft();
             toast(old ? '일기를 고쳤어요.' : '일기를 저장했어요.', { next: true });
             highlight(saved.id);
             App.router.go(back(ctx));
@@ -209,6 +259,7 @@
                 });
                 if (!ok) return;
                 store.deleteDiary(old.id);
+                dropDraft();
                 toast('일기를 지웠어요.', { next: true });
                 App.router.go(back(ctx));
             });
