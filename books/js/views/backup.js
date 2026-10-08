@@ -62,6 +62,21 @@ App.route('/backup', {
         }
 
         download.addEventListener('click', () => {
+            if (window.AndroidBridge && App.folderBackup) {
+                // 안드로이드 앱 안: 앱이 "내 파일 → 다운로드"에 바로 저장한다
+                const file = backupFile();
+                file.text().then(text => {
+                    try {
+                        App.folderBackup.saveFile(file.name, text);
+                        store.markBackedUp();
+                        renderSummary();
+                        App.ui.toast(`"내 파일 → 다운로드"에 ${file.name} 을(를) 저장했어요.`);
+                    } catch (err) {
+                        App.ui.toast(`저장하지 못했어요: ${err.message}`);
+                    }
+                });
+                return;
+            }
             const file = backupFile();
             const url = URL.createObjectURL(file);
             const link = document.createElement('a');

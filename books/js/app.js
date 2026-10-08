@@ -25,7 +25,8 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('pageshow', refreshIfChanged);
 
-if ('serviceWorker' in navigator) {
+// 안드로이드 앱(APK) 안에서는 파일이 앱에 들어 있어 오프라인용 서비스 워커가 필요 없다
+if ('serviceWorker' in navigator && !window.AndroidBridge) {
     // 새 버전이 설치되어 화면을 넘겨받으면 한 번 새로고침해서 옛 파일과 섞이지 않게 한다
     const hadController = Boolean(navigator.serviceWorker.controller);
     let reloaded = false;

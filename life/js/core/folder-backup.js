@@ -26,7 +26,87 @@ App.folderBackup = (() => {
     let folder = null;          // 고른 폴더 (IndexedDB 에 보관)
     const listeners = new Set();
 
-    const supported = () => typeof window.showDirectoryPicker === 'function' && 'indexedDB' in window;
+    // 안드로이드 앱(APK) 안에서 돌 때: 앱이 주는 AndroidBridge 로 폴더에 쓴다 (한 번 고르면 계속 허락됨)
+    const bridge = window.AndroidBridge || null;
+    const supported = () => Boolean(bridge) || (typeof window.showDirectoryPicker === 'function' && 'indexedDB' in window);
+
+    // AndroidBridge 를 웹의 폴더(FileSystemDirectoryHandle)처럼 쓸 수 있게 감싼다
+    function nativeDir() {
+        const name = bridge.folderName();
+        if (!name) return null;
+        const fail = result => {
+            if (result === 'ok') return;
+            const err = new Error(result.replace(/^\w+:/, ''));
+            err.name = result.startsWith('denied') ? 'NotAllowedError' : 'Error';
+            throw err;
+        };
+        return {
+            kind: 'directory',
+            name,
+            async queryPermission() { return 'granted'; },
+            async requestPermission() { return 'granted'; },
+            async getFileHandle(file, options = {}) {
+                if (!options.create && !bridge.hasFile(file)) {
+                    const err = new Error('파일이 없어요');
+                    err.name = 'NotFoundError';
+                    throw err;
+                }
+                return {
+                    kind: 'file',
+                    name: file,
+                    async getFile() {
+                        const text = bridge.readFile(file);
+                        return { text: async () => text };
+                    },
+                    async createWritable() {
+                        let buffer = '';
+                        return {
+                            async write(chunk) { buffer += chunk; },
+                            async close() { fail(bridge.writeFile(file, buffer)); }
+                        };
+                    }
+                };
+            },
+            async *values() {
+                for (const n of JSON.parse(bridge.listFiles())) yield { kind: 'file', name: n };
+            },
+            async removeEntry(file) { bridge.deleteFile(file); }
+        };
+    }
+
+    // 앱의 폴더 고르기 창. 고른 폴더 이름을 돌려준다 (취소하면 AbortError)
+    function nativePick() {
+        return new Promise((resolve, reject) => {
+            window.__onNativeFolder = name => {
+                window.__onNativeFolder = null;
+                if (name) resolve(name);
+                else {
+                    const err = new Error('취소');
+                    err.name = 'AbortError';
+                    reject(err);
+                }
+            };
+            bridge.pickFolder();
+        });
+    }
+
+    // 파일 하나를 "내 파일 → 다운로드"에 저장 (앱 안에서는 AndroidBridge, 브라우저에서는 내려받기)
+    function saveFile(name, text) {
+        if (bridge) {
+            const result = bridge.saveDownload(name, text);
+            if (result !== 'ok') throw new Error(result.replace(/^\w+:/, ''));
+            return true;
+        }
+        const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        return true;
+    }
     const prefix = () => NAMES[appName] || appName;
 
     // ---- 상태 (앱마다) ---------------------------------------------------
@@ -63,6 +143,7 @@ App.folderBackup = (() => {
         });
     }
     async function getFolder() {
+        if (bridge) return nativeDir();
         if (folder) return folder;
         if (!supported()) return null;
         try { folder = (await kv('readonly', s => s.get('folder'))) || null; } catch (err) { folder = null; }
@@ -88,15 +169,7 @@ App.folderBackup = (() => {
                 clearTimeout(timer);
                 timer = null;
             }
-            const blob = new Blob([JSON.stringify(exporter(), null, 1)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${prefix()}-backup-${stamp(now, true)}.json`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            saveFile(`${prefix()}-backup-${stamp(now, true)}.json`, JSON.stringify(exporter(), null, 1));
             setStatus({ lastDownload: Date.now(), pending: false });
             return true;
         } catch (err) {
@@ -246,9 +319,16 @@ App.folderBackup = (() => {
 
     // 폴더 고르기 (버튼을 누를 때만 부를 수 있음)
     async function chooseFolder() {
-        const dir = await window.showDirectoryPicker({ id: 'records-backup', mode: 'readwrite', startIn: 'documents' });
-        folder = dir;
-        await kv('readwrite', s => s.put(dir, 'folder'));
+        let dir;
+        if (bridge) {
+            await nativePick();
+            dir = nativeDir();
+            if (!dir) throw new Error('폴더에 쓸 허락을 받지 못했어요. 다시 골라 주세요');
+        } else {
+            dir = await window.showDirectoryPicker({ id: 'records-backup', mode: 'readwrite', startIn: 'documents' });
+            folder = dir;
+            await kv('readwrite', s => s.put(dir, 'folder'));
+        }
         // 다른 앱(같은 탭의 책 앱 등)도 이 폴더를 쓰도록 이름을 남긴다
         const all = readJson(STATUS_KEY, {});
         Object.keys(NAMES).forEach(name => { all[name] = { ...(all[name] || {}), folderName: dir.name, linked: name === appName ? false : (all[name] || {}).linked && (all[name] || {}).folderName === dir.name }; });
@@ -455,5 +535,30 @@ App.folderBackup = (() => {
         if (connected() && (status().pending || !status().linked)) setTimeout(backupNow, 1500);
     }
 
-    return { init, schedule, backupNow, supported, connected, status, summary, onChange, renderCard };
+    // 안드로이드 앱에서 아직 폴더를 고르지 않았으면 홈 화면에 안내를 띄운다
+    function renderNativePrompt(box) {
+        if (!box || !bridge || connected()) return;
+        box.innerHTML = `
+            <section class="card native-prompt">
+                <div class="native-text">
+                    <strong>기록을 갤탭 폴더에 자동 저장하세요</strong>
+                    <span class="hint small">폴더를 한 번만 고르면, 저장할 때마다 그 폴더에 백업 파일이 저장돼요.
+                        예전에 쓰던 "삶의 기록" 폴더를 고르면 그 안의 기록도 이 앱으로 가져와요.</span>
+                </div>
+                <button class="btn" type="button" data-native-pick>폴더 고르기</button>
+            </section>`;
+        box.querySelector('[data-native-pick]').addEventListener('click', async () => {
+            try {
+                App.ui.toast(await chooseFolder() ? '폴더를 골랐어요. 이제 저장할 때마다 자동으로 저장해요.' : `저장하지 못했어요: ${status().error}`);
+                box.innerHTML = '';
+                App.router.render();
+            } catch (err) {
+                if (err.name !== 'AbortError') App.ui.toast(err.message || String(err));
+            }
+        });
+    }
+
+    const isNative = () => Boolean(bridge);
+
+    return { init, schedule, backupNow, supported, connected, status, summary, onChange, renderCard, renderNativePrompt, saveFile, isNative };
 })();
