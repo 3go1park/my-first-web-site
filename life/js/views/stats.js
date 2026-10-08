@@ -49,7 +49,7 @@ App.route('/stats', {
                     </div>
                 </div>
                 <div class="stat-grid">
-                    ${tile('등록한 할일', `${totalTodos}개`, `반복 ${store.todos().filter(t => t.count !== 1).length}개`)}
+                    ${tile('등록한 할일', `${totalTodos}개`, `반복 ${store.todos().filter(t => t.repeat !== 'none').length}개`)}
                     ${tile('지금 지연', `${counts.late}개`, counts.late ? '할일 내역에서 확인하세요' : '밀린 일이 없어요')}
                     ${tile('최근 7일 완료율', percentText(rate7), `${rate7.total}회 중 ${rate7.done}회`)}
                     ${tile('오늘 할일', `${todayDone}/${todayList.length}`, todayList.length ? '오늘 걸친 회차 중 완료' : '오늘은 할일이 없어요')}

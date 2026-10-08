@@ -16,6 +16,7 @@
     --doing-ink: #1f5f7a;  --doing-bg: #dcecf3;
     --late-ink: #a3271b;   --late-bg: #fbe3dc;
     --done-ink: #2f6a2a;   --done-bg: #e2efdc;
+    --missed-ink: #6e4a00; --missed-bg: #f6ead0;
 
     /* 차트: 강조색 하나 + 옅은 같은 색 (못 한 회차) */
     --chart-grid: #e6e7f0;
@@ -145,6 +146,7 @@ h3 { font-size: 21px; }
 .status-late   { --status-ink: var(--late-ink);  --status-bg: var(--late-bg); }
 .status-done   { --status-ink: var(--done-ink);  --status-bg: var(--done-bg); }
 .status-before { --status-ink: var(--muted);     --status-bg: transparent; }
+.status-missed { --status-ink: var(--missed-ink); --status-bg: var(--missed-bg); }
 .status-all    { --status-ink: var(--ink);       --status-bg: var(--line); }
 
 .status-badge {
@@ -162,6 +164,23 @@ h3 { font-size: 21px; }
 }
 .todo-check:active { transform: scale(0.92); }
 .todo-check.is-done { background: var(--done-ink); border-color: var(--done-ink); }
+.todo-check.is-missed { background: var(--missed-ink); border-color: var(--missed-ink); }
+
+/* 완료·미완료 고르기 창 */
+.result-dialog .hint { margin-top: 6px; }
+.result-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0 20px; }
+.result-choice {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    min-height: 120px; padding: 16px; border: 2px solid var(--line); border-radius: 18px;
+    background: var(--paper); color: var(--ink); font-size: 20px; font-weight: 800; font-family: inherit; cursor: pointer;
+}
+.result-choice b { font-size: 30px; }
+.result-choice small { font-size: 14px; font-weight: 600; color: var(--muted); }
+.result-choice.is-done b { color: var(--done-ink); }
+.result-choice.is-missed b { color: var(--missed-ink); }
+.result-choice.is-current { border-color: var(--accent); background: var(--accent-soft); }
+.result-choice:active { transform: scale(0.97); }
+.end-tools { margin-top: -6px; }
 .todo-check.is-waiting { border-style: dashed; border-color: var(--line); cursor: default; }
 
 /* 진행 막대 · 미터 */

@@ -42,6 +42,9 @@ App.ui = (() => {
         highlightId = id;
     }
 
+    // 다음 화면에서 강조할 줄 (목록이 그 줄을 숨기지 않게 확인하는 데 씀)
+    const pendingHighlight = () => highlightId;
+
     function consumeHighlight(root) {
         if (!highlightId) return false;
         const row = [...root.querySelectorAll('[data-id]')].find(r => r.dataset.id === highlightId);
@@ -52,29 +55,69 @@ App.ui = (() => {
         return true;
     }
 
-    // 할일 상태 표시 (진행·지연·진행전·완료). 색과 함께 글자로도 보여 준다.
+    // 할일 상태 표시 (진행·지연·진행전·완료·미완료). 색과 함께 글자로도 보여 준다.
     function statusBadge(status) {
         return `<em class="status-badge status-${status}">${App.schedule.STATUS[status]}</em>`;
     }
 
-    // 회차 완료 체크 버튼
+    // 회차 결과 버튼: 비어 있음 → 누르면 완료/미완료를 고른다. ✓ = 완료, ✕ = 미완료
     function checkButton(o, extraClass = '') {
-        const label = o.done ? '완료 취소' : '완료로 표시';
-        return `<button type="button" class="todo-check ${o.done ? 'is-done' : ''} ${extraClass}" data-check="${o.todo.id}" data-start="${o.start}" aria-label="${label}" title="${label}">${o.done ? '✓' : ''}</button>`;
+        const label = o.done ? '완료 (눌러서 바꾸기)' : o.missed ? '미완료 (눌러서 바꾸기)' : '완료 또는 미완료로 표시';
+        const cls = o.done ? 'is-done' : o.missed ? 'is-missed' : '';
+        return `<button type="button" class="todo-check ${cls} ${extraClass}" data-check="${o.todo.id}" data-start="${o.start}" aria-label="${label}" title="${label}">${o.done ? '✓' : o.missed ? '✕' : ''}</button>`;
     }
 
-    // 목록 안의 체크 버튼을 누르면 완료를 바꾸고 화면을 다시 그린다
+    // 회차 결과 고르기 창: 'done' | 'missed' | '' (표시 지우기) | null (닫기)
+    function chooseResult(t, start, current) {
+        const { formatDay } = App.util;
+        return new Promise(resolve => {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'app-dialog result-dialog';
+            dialog.innerHTML = `
+                <h3>${escapeHtml(t.title)}</h3>
+                <p class="hint">${formatDay(start)} 할일을 어떻게 끝낼까요?</p>
+                <div class="result-choices">
+                    <button type="button" class="result-choice is-done ${current === 'done' ? 'is-current' : ''}" data-result="done"><b>✓</b> 완료<small>정상적으로 했어요</small></button>
+                    <button type="button" class="result-choice is-missed ${current === 'missed' ? 'is-current' : ''}" data-result="missed"><b>✕</b> 미완료<small>하지 못하고 끝내요</small></button>
+                </div>
+                <div class="dialog-actions">
+                    ${current ? '<button type="button" class="btn-text" data-result="">표시 지우기</button>' : ''}
+                    <button type="button" class="btn btn-outline" data-result="close">닫기</button>
+                </div>`;
+            document.body.appendChild(dialog);
+            const finish = answer => {
+                dialog.close();
+                dialog.remove();
+                resolve(answer);
+            };
+            dialog.addEventListener('click', event => {
+                const button = event.target.closest('[data-result]');
+                if (button) finish(button.dataset.result === 'close' ? null : button.dataset.result);
+                else if (event.target === dialog) finish(null);
+            });
+            dialog.addEventListener('cancel', event => {
+                event.preventDefault();
+                finish(null);
+            });
+            dialog.showModal();
+        });
+    }
+
+    // 목록 안의 결과 버튼을 누르면 완료/미완료를 고르고 화면을 다시 그린다
     function bindChecks(root, after) {
-        root.addEventListener('click', event => {
+        root.addEventListener('click', async event => {
             const button = event.target.closest('[data-check]');
             if (!button) return;
             event.preventDefault();
             event.stopPropagation();
             const t = App.store.todo(button.dataset.check);
             if (!t) return;
-            const done = !t.done[button.dataset.start];
-            App.store.setDone(t.id, button.dataset.start, done);
-            toast(done ? `'${t.title}' 완료!` : `'${t.title}' 완료를 취소했어요.`);
+            const start = button.dataset.start;
+            const current = App.schedule.resultOf(t, start);
+            const result = await chooseResult(t, start, current);
+            if (result === null || result === current) return;
+            App.store.setResult(t.id, start, result);
+            toast(result === 'done' ? `'${t.title}' 완료!` : result === 'missed' ? `'${t.title}'을(를) 미완료로 끝냈어요.` : '표시를 지웠어요.');
             if (after) after();
             else App.router.render();
         });
@@ -145,7 +188,7 @@ App.ui = (() => {
     }
 
     return {
-        setTopBar, toast, showPendingToast, highlight, consumeHighlight, statusBadge, checkButton, bindChecks,
+        setTopBar, toast, showPendingToast, highlight, consumeHighlight, pendingHighlight, statusBadge, checkButton, bindChecks,
         emptyState, progressBar, icon, confirmDialog
     };
 })();

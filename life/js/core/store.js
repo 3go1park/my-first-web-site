@@ -4,14 +4,16 @@
 // 저장 모양 (schema 1)
 // {
 //   schema: 1,
-//   todos:   [{ id, title, memo, start, end, repeat, weekdays, count, calendar, done, createdAt, updatedAt }],
+//   todos:   [{ id, title, memo, start, end, repeat, weekdays, endless, calendar, done, missed, createdAt, updatedAt }],
 //   diary:   [{ id, date, mood, content, createdAt, updatedAt }],
 //   settings:{ lastBackup },
 //   deleted: { todos: {id: 지운 시각}, diary: {id: 시각} }
 // }
-// 할일: repeat = 'daily' | 'weekly' | 'monthly' | 'yearly', weekdays = [0(일)~6(토)],
-//       count = 반복 횟수 (0 = 계속), calendar = 'solar'(양력) | 'lunar'(음력),
-//       done = { [그 회차의 시작일]: 완료한 시각 }
+// 할일: repeat = 'none'(반복 없음) | 'daily' | 'weekly' | 'monthly' | 'yearly', weekdays = [0(일)~6(토)],
+//       반복하면 시작일~종료일 사이에 반복 (endless = true 면 종료일 없이 계속),
+//       calendar = 'solar'(양력) | 'lunar'(음력),
+//       done = { [회차 시작일]: 완료한 시각 }, missed = { [회차 시작일]: 미완료로 끝낸 시각 }
+//       (예전 모양은 count = 반복 횟수였다. 읽을 때 fromOldTodo 로 바꾼다)
 // 일기는 하루에 하나. updatedAt 과 deleted 는 "합쳐서 복원"할 때 어느 쪽이 최신인지 가리는 데 쓴다.
 App.store = (() => {
     const { uid, today, isDate } = App.util;
@@ -19,7 +21,7 @@ App.store = (() => {
     const SCHEMA = 1;
     const BACKUP_APP = 'daily-life';
     const BACKUP_VERSION = 1;
-    const REPEATS = ['daily', 'weekly', 'monthly', 'yearly'];
+    const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
 
     let data = null;
     // 마지막으로 읽거나 쓴 저장소 내용. 다른 창(크롬 탭과 홈 화면 앱 등)이 바꿨는지 비교하는 데 쓴다.
@@ -39,21 +41,45 @@ App.store = (() => {
         return next;
     }
 
+    // 예전 모양(반복 횟수 count)의 할일을 지금 모양(반복 종료일)으로 바꾼다. 완료 기록은 그대로 둔다.
+    //   1회 → 반복 없음, 계속(0) → 종료일 없이 계속, N회 → N번째 회차 날짜를 종료일로
+    function fromOldTodo(raw) {
+        const count = parseInt(raw.count, 10);
+        const t = { ...raw };
+        delete t.count;
+        if (count === 1 || !REPEATS.includes(raw.repeat)) return { ...t, repeat: 'none' };
+        if (!count) return { ...t, endless: true, end: raw.start };
+        const { addDays, addMonths, weekday } = App.util;
+        let end = raw.start;
+        if (raw.repeat === 'daily') end = addDays(raw.start, count - 1);
+        else if (raw.repeat === 'weekly') {
+            const days = (raw.weekdays || []).length ? raw.weekdays.map(Number) : [weekday(raw.start)];
+            for (let d = raw.start, n = 0; n < count; d = addDays(d, 1)) if (days.includes(weekday(d))) { n++; end = d; }
+        } else {
+            const months = (raw.repeat === 'monthly' ? 1 : 12) * (count - 1);
+            // 음력은 양력보다 조금 늦게 끝날 수 있어 여유를 둔다
+            end = raw.calendar === 'lunar' ? addDays(addMonths(raw.start, months), raw.repeat === 'monthly' ? 20 : 40) : addMonths(raw.start, months);
+        }
+        return { ...t, end };
+    }
+
     function cleanTodo(raw, base = {}) {
+        if (raw.count !== undefined) raw = fromOldTodo(raw);
         const start = isDate(raw.start) ? raw.start : today();
         const end = isDate(raw.end) && raw.end >= start ? raw.end : start;
-        const count = Math.max(0, Math.min(9999, parseInt(raw.count, 10) || 0));
+        const repeat = REPEATS.includes(raw.repeat) ? raw.repeat : 'none';
         return {
             id: base.id || uid(),
             title: String(raw.title || '').trim(),
             memo: String(raw.memo || '').trim(),
             start,
             end,
-            repeat: REPEATS.includes(raw.repeat) ? raw.repeat : 'daily',
+            repeat,
             weekdays: [...new Set((raw.weekdays || []).map(Number).filter(n => n >= 0 && n <= 6))].sort(),
-            count: raw.count === 0 || raw.count === '0' ? 0 : count || 1,
+            endless: repeat !== 'none' && Boolean(raw.endless),
             calendar: raw.calendar === 'lunar' ? 'lunar' : 'solar',
             done: { ...(base.done || {}) },
+            missed: { ...(base.missed || {}) },
             createdAt: base.createdAt || Date.now(),
             updatedAt: base.updatedAt || Date.now()
         };
@@ -114,16 +140,21 @@ App.store = (() => {
         save();
     }
 
-    // 한 회차(시작일 occStart)를 완료/완료 취소
-    function setDone(id, occStart, done) {
+    // 한 회차(시작일 occStart)의 결과: 'done'(완료) | 'missed'(미완료로 끝냄) | ''(표시 지우기)
+    function setResult(id, occStart, result) {
         sync();
         const t = todo(id);
         if (!t) return;
-        if (done) t.done[occStart] = Date.now();
-        else delete t.done[occStart];
+        delete t.done[occStart];
+        delete t.missed[occStart];
+        if (result === 'done') t.done[occStart] = Date.now();
+        if (result === 'missed') t.missed[occStart] = Date.now();
         t.updatedAt = Date.now();
         save();
     }
+
+    // 예전 이름 (완료/완료 취소)
+    const setDone = (id, occStart, done) => setResult(id, occStart, done ? 'done' : '');
 
     // ---- 일기 ------------------------------------------------------------
     // 최신 날짜가 먼저
@@ -275,7 +306,7 @@ App.store = (() => {
     load();
 
     return {
-        todos, todo, saveTodo, deleteTodo, setDone,
+        todos, todo, saveTodo, deleteTodo, setDone, setResult,
         diary, diaryEntry, diaryOn, saveDiary, deleteDiary,
         settings, exportData, markBackedUp, parseBackup, restore, previewMerge, applyMerge, sync
     };

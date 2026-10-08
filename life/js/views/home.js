@@ -33,8 +33,8 @@ App.route('/', {
             <li class="today-row" data-id="${o.todo.id}">
                 ${checkButton(o)}
                 <a class="today-main" href="#/todo/${o.todo.id}/edit?from=home">
-                    <strong class="${o.done ? 'is-done-text' : ''}">${escapeHtml(o.todo.title)}</strong>
-                    <small>${o.status === 'late' ? `${relativeDay(o.end)} 마감` : o.end !== o.start ? `~ ${formatDay(o.end)}` : sch.repeatText(o.todo)}${state.missed && o.status !== 'late' ? ` · 놓친 회차 ${state.missed}` : ''}</small>
+                    <strong class="${o.result ? 'is-done-text' : ''}">${escapeHtml(o.todo.title)}</strong>
+                    <small>${o.status === 'late' ? `${relativeDay(o.end)} 마감` : o.end !== o.start ? `~ ${formatDay(o.end)}` : sch.repeatText(o.todo)}${state.overdue && o.status !== 'late' ? ` · 지연 ${state.overdue}회` : ''}</small>
                 </a>
                 ${statusBadge(o.status)}
             </li>`;
