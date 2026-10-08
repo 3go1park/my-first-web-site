@@ -4,7 +4,7 @@ App.route('/todos', {
     back: '/',
     render(el, ctx) {
         const { escapeHtml, today, formatDay, formatDate, startOfWeek, addDays, startOfMonth, endOfMonth } = App.util;
-        const { statusBadge, checkButton, bindChecks, emptyState, icon } = App.ui;
+        const { statusBadge, checkButton, bindChecks, emptyState, icon, toast } = App.ui;
         const store = App.store;
         const sch = App.schedule;
         const FILTER_KEY = 'dailylife.todoFilter';
@@ -73,6 +73,21 @@ App.route('/todos', {
             </section>`;
 
         const $ = sel => el.querySelector(sel);
+        // 방금 등록·수정한 할일이 검색 조건 때문에 안 보이면 조건을 푼다
+        const fresh = App.ui.pendingHighlight();
+        if (fresh && store.todo(fresh)) {
+            const t = store.todo(fresh);
+            const [from, to] = filter.period === 'custom' ? [filter.from, filter.to] : PERIODS[filter.period][1]();
+            const visible = (filter.kind === 'all' || (filter.kind === 'once') === (t.repeat === 'none'))
+                && (!filter.text.trim() || [t.title, t.memo].some(v => v.toLowerCase().includes(filter.text.trim().toLowerCase())))
+                && ((!from && !to) || sch.occurrencesIn(t, from || '0000-01-01', to || '9999-12-31').length)
+                && (filter.status === 'all' || sch.stateOf(t).status === filter.status);
+            if (!visible) {
+                Object.assign(filter, { text: '', status: 'all', period: 'all', from: '', to: '', kind: 'all' });
+                $('#search').value = '';
+                toast('방금 저장한 할일이 보이도록 검색 조건을 풀었어요.');
+            }
+        }
         $('#kind').value = filter.kind;
         $('#sort').value = filter.sort;
 
@@ -80,12 +95,12 @@ App.route('/todos', {
             const text = filter.text.trim().toLowerCase();
             const [from, to] = filter.period === 'custom' ? [filter.from, filter.to] : PERIODS[filter.period][1]();
             const items = store.todos()
-                .filter(t => filter.kind === 'all' || (filter.kind === 'once') === (t.count === 1))
+                .filter(t => filter.kind === 'all' || (filter.kind === 'once') === (t.repeat === 'none'))
                 .filter(t => !text || [t.title, t.memo].some(v => v.toLowerCase().includes(text)))
                 .filter(t => (!from && !to) || sch.occurrencesIn(t, from || '0000-01-01', to || '9999-12-31').length)
                 .map(t => ({ t, state: sch.stateOf(t) }));
 
-            const counts = { all: items.length, doing: 0, late: 0, before: 0, done: 0 };
+            const counts = { all: items.length, doing: 0, late: 0, before: 0, done: 0, missed: 0 };
             items.forEach(x => { counts[x.state.status]++; });
             $('#statuses').innerHTML = ['all', ...sch.STATUS_ORDER].map(s => `
                 <button type="button" class="filter-tab status-${s} ${filter.status === s ? 'is-active' : ''}" data-status="${s}">
@@ -104,18 +119,18 @@ App.route('/todos', {
                 const o = state.focus;
                 const canCheck = o.start <= now;
                 const range = o.end !== o.start ? `${formatDay(o.start)} ~ ${formatDate(o.end)}` : formatDay(o.start);
-                const repeating = t.count !== 1;
+                const repeating = t.repeat !== 'none';
                 return `
                 <li><a class="todo-row" href="#/todo/${t.id}/edit" data-id="${t.id}">
                     <span>${canCheck ? checkButton(o) : '<span class="todo-check is-waiting" aria-hidden="true"></span>'}</span>
                     <span class="col-title">
                         <strong class="${state.status === 'done' ? 'is-done-text' : ''}">${escapeHtml(t.title)}</strong>
                         <small class="col-date-inline">${range}</small>
-                        <small>${escapeHtml(t.memo) || (repeating ? `완료 ${state.doneCount}회${state.total ? ` / ${state.total}회` : ''}` : '')}</small>
+                        <small>${escapeHtml(t.memo) || (repeating ? `완료 ${state.doneCount}회 · 미완료 ${state.missedCount}회` : '')}</small>
                     </span>
                     <span class="col-date">${repeating ? '<small>이번 회차</small> ' : ''}${range}</span>
                     <span class="col-repeat">${repeating ? icon('repeat') : ''}${sch.repeatText(t)}</span>
-                    <span class="col-status">${statusBadge(state.status)}${state.missed && state.status !== 'late' ? `<small class="late-text">놓친 ${state.missed}회</small>` : ''}</span>
+                    <span class="col-status">${statusBadge(state.status)}${state.overdue && state.status !== 'late' ? `<small class="late-text">지연 ${state.overdue}회</small>` : ''}</span>
                 </a></li>`;
             }).join('');
             $('#no-match').hidden = shown.length > 0;

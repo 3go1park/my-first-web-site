@@ -45,21 +45,20 @@ life/
 ```js
 {
   schema: 1,
-  todos: [{ id, title, memo, start, end, repeat, weekdays, count, calendar, done, createdAt, updatedAt }],
+  todos: [{ id, title, memo, start, end, repeat, weekdays, endless, calendar, done, missed, createdAt, updatedAt }],
   diary: [{ id, date, mood, content, createdAt, updatedAt }],
   settings: { lastBackup },
   deleted: { todos: { id: 지운 시각 }, diary: { id: 시각 } }
 }
 ```
 
-- **할일 반복**: `repeat` = `daily`(매일) · `weekly`(매주, `weekdays` 0=일~6=토) · `monthly`(매월) · `yearly`(매년).
-  `count`는 전체 횟수(처음 포함, 기본 1 = 반복 안 함), `0`은 계속. `calendar`가 `lunar`면 매월·매년을 음력 날짜로 반복합니다
-  (예: 음력 생일, 제사). 그달에 그 날이 없으면(31일, 음력 30일) 그달 마지막 날로 합니다.
-- **회차**: 시작일~종료일이 한 회차이고, 반복하면 같은 길이로 다음 회차가 이어집니다.
-  완료는 회차의 시작일을 열쇠로 `done`에 저장합니다.
-- **상태는 저장하지 않고 계산합니다** (`schedule.stateOf`):
-  오늘이 걸친 회차가 있으면 그 회차를 완료했는지에 따라 **완료/진행**, 없으면 지난 회차를 못 했으면 **지연**,
-  다음 회차가 있으면 **진행전**, 모두 끝났으면 **완료**. 못 한 지난 회차 수는 "놓친 N회"로 보여 줍니다.
+- **할일 반복**: `repeat` = `none`(반복 없음) · `daily` · `weekly`(`weekdays` 0=일~6=토) · `monthly` · `yearly`.
+  반복 없음은 시작일~종료일이 한 번의 할일(종료일이 마감). 반복은 시작일부터 종료일까지 하루짜리 회차로 이어지고,
+  `endless`면 종료일 없이 계속. `calendar`가 `lunar`면 매월·매년을 음력 날짜로 반복합니다 (없는 날은 그달 마지막 날).
+- **회차 결과**: 완료는 `done`, 하지 못하고 끝낸 미완료는 `missed`에 회차 시작일을 열쇠로 저장합니다.
+- **상태는 저장하지 않고 계산합니다** (`schedule.stateOf`): 진행 · 지연(결과 없이 날짜가 지남) · 진행전 · 완료 · 미완료.
+- **예전 모양 자동 변환** (`store.fromOldTodo`): 반복 횟수 `count`가 있던 할일은 읽을 때 1회 → 반복 없음,
+  계속 → `endless`, N회 → N번째 회차 날짜를 종료일로 바꿉니다. 완료 기록은 그대로 둡니다.
 - **일기는 하루에 하나**입니다. 이미 쓴 날을 고르면 그 일기를 엽니다.
 - **합쳐서 복원** (`store.mergeData`): 한쪽에만 있으면 더하고, 둘 다 있으면 더 최근에 고친 쪽을 남기며,
   한쪽에서 지운 것은 지운 뒤 고친 적이 없으면 지웁니다. 같은 날 일기를 양쪽에서 따로 썼으면 두 글을 이어 붙입니다.

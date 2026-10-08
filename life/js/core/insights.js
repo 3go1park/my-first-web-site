@@ -6,7 +6,7 @@ App.insights = (() => {
 
     // 할일 지금 상태별 개수
     function statusCounts() {
-        const counts = { doing: 0, late: 0, before: 0, done: 0 };
+        const counts = { doing: 0, late: 0, before: 0, done: 0, missed: 0 };
         store.todos().forEach(t => { counts[sch.stateOf(t).status]++; });
         return counts;
     }

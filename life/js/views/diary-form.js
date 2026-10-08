@@ -65,7 +65,7 @@
             store.todos().forEach(t => sch.occurrencesOn(t, d).forEach(o => list.push(o)));
             const order = s => sch.STATUS_ORDER.indexOf(s);
             list.sort((a, b) => order(a.status) - order(b.status) || a.todo.title.localeCompare(b.todo.title));
-            const counts = { doing: 0, late: 0, before: 0, done: 0 };
+            const counts = { doing: 0, late: 0, before: 0, done: 0, missed: 0 };
             list.forEach(o => { counts[o.status]++; });
             const percent = list.length ? Math.round(counts.done / list.length * 100) : 0;
             shown = list;
@@ -89,7 +89,7 @@
                             ${o.start <= today() ? checkButton(o) : '<span class="todo-check is-waiting" aria-hidden="true"></span>'}
                             <button type="button" class="pick-todo" data-pick="${keyOf(o)}" aria-pressed="${on}">
                                 <span class="pick-box" aria-hidden="true">${on ? '✓' : ''}</span>
-                                <span class="${o.done ? 'is-done-text' : ''}">${escapeHtml(o.todo.title)}</span>
+                                <span class="${o.result ? 'is-done-text' : ''}">${escapeHtml(o.todo.title)}</span>
                             </button>
                             ${statusBadge(o.status)}
                         </li>`;
@@ -102,7 +102,7 @@
             const textarea = $('#content');
             const current = textarea.value;
             const lines = shown.filter(o => picked.has(keyOf(o)))
-                .map(o => (o.done ? `✓ ${o.todo.title}` : `· ${o.todo.title} (${sch.STATUS[o.status]})`))
+                .map(o => (o.done ? `✓ ${o.todo.title}` : o.missed ? `✕ ${o.todo.title} (미완료)` : `· ${o.todo.title} (${sch.STATUS[o.status]})`))
                 .filter(line => !current.split('\n').includes(line));
             picked.clear();
             if (!lines.length) {

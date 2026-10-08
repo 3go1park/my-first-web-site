@@ -215,11 +215,14 @@ App.folderBackup = (() => {
             setStatus({ lastOk: Date.now(), pending: false, needsPermission: false, needsRepick: false, error: '' });
             return true;
         } catch (err) {
+            const hadChanges = status().pending;
             if (isPermissionError(err)) {
                 setStatus({ pending: true, needsPermission: true, error: '폴더에 저장하도록 다시 허용해 주세요', lastTry: Date.now() });
             } else {
                 setStatus({ pending: true, error: `${err.name || ''} ${err.message || err}`.trim(), lastTry: Date.now() });
             }
+            // 폴더에 못 쓰면 바뀐 기록을 다운로드 폴더에라도 백업 파일로 남긴다
+            if (hadChanges && downloadNow()) setStatus({ fallbackAt: Date.now() });
             return false;
         } finally {
             running = false;
@@ -309,6 +312,7 @@ App.folderBackup = (() => {
         }
         if (!connected()) return null;
         const s = status();
+        if (s.needsPermission && s.fallbackAt) return { text: `다운로드에 백업 ${ago(s.fallbackAt)}`, bad: true, lastOk: s.fallbackAt };
         if (s.needsPermission) return { text: '폴더 저장 허용 필요', bad: true };
         if (s.error && s.pending) return { text: '폴더 저장 실패', bad: true };
         if (s.lastOk) return { text: `폴더 저장 ${ago(s.lastOk)}`, bad: false, lastOk: s.lastOk };
@@ -367,6 +371,8 @@ App.folderBackup = (() => {
                 <p class="hint">저장할 때마다 탭의 폴더에 백업 파일을 자동으로 써요. 브라우저 자료가 지워지거나 앱을 다시 설치해도
                     폴더의 파일은 남아서 다시 불러올 수 있어요.</p>
                 <p class="auto-line ${bad ? 'is-bad' : ''}">${on ? `폴더: <b>${escapeHtml(s.folderName || '')}</b> · ` : ''}${line}</p>
+                ${on && bad && s.fallbackAt ? `<p class="hint small">대신 저장할 때마다 <b>"내 파일 → 다운로드"</b>에 백업 파일을 받고 있어요
+                    (마지막: ${new Date(s.fallbackAt).toLocaleString('ko-KR')}). 기록은 안전해요.</p>` : ''}
                 <div class="button-row">
                     ${!on ? '<button class="btn" data-auto="choose" type="button">저장할 폴더 고르기</button>' : ''}
                     ${on && s.needsPermission && !s.needsRepick ? '<button class="btn" data-auto="allow" type="button">다시 허용하기</button>' : ''}

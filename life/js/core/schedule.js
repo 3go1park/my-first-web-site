@@ -1,75 +1,83 @@
-// 할일 일정 계산: 반복 회차 만들기, 상태(진행·완료·지연·진행전) 정하기.
-// 상태는 저장하지 않고 날짜와 완료 표시로 그때그때 계산한다.
+// 할일 일정 계산: 반복 회차 만들기, 상태(진행·지연·진행전·완료·미완료) 정하기.
+// 상태는 저장하지 않고 날짜와 결과 표시(완료/미완료)로 그때그때 계산한다.
 //
-// 회차: 시작일~종료일이 한 회차. 반복하면 같은 길이로 다음 회차가 이어진다.
+// 반복 없음 → 시작일~종료일이 한 번의 할일 (종료일이 마감).
+// 반복 있음 → 시작일부터 종료일까지(계속이면 끝없이) 하루짜리 회차가 이어진다.
 //   매일 → 하루씩, 매주 → 고른 요일마다, 매월 → 같은 날(음력이면 음력 같은 날),
 //   매년 → 같은 달 같은 날(음력이면 음력 같은 달 같은 날). 없는 날(31일, 음력 30일)은 그달 마지막 날.
-//   반복 횟수가 1이면 반복하지 않는다. 0(계속)이면 끝없이 이어진다.
+// 회차 결과: 완료(done) 또는 미완료(missed, 하지 못하고 끝냄). 결과가 없는데 날짜가 지나면 지연.
 App.schedule = (() => {
-    const { addDays, addMonths, daysBetween, weekday, today, WEEKDAYS } = App.util;
+    const { addDays, addMonths, weekday, today, formatDate, WEEKDAYS } = App.util;
     const lunar = App.lunar;
 
     const STATUS = {
         doing: '진행',
         late: '지연',
         before: '진행전',
-        done: '완료'
+        done: '완료',
+        missed: '미완료'
     };
-    const STATUS_ORDER = ['doing', 'late', 'before', 'done'];
-    const REPEAT = { daily: '매일', weekly: '매주', monthly: '매월', yearly: '매년' };
+    const STATUS_ORDER = ['doing', 'late', 'before', 'done', 'missed'];
+    const REPEAT = { none: '없음', daily: '매일', weekly: '매주', monthly: '매월', yearly: '매년' };
     const LIMIT = 20000;   // 끝없는 반복에서도 멈추도록
 
-    // 회차 시작일을 차례로 내놓는다
-    function* starts(t) {
-        const total = t.count || Infinity;
-        let n = 0;
-        const give = function* (date) { if (n < total) { n++; yield date; } };
-        if (total === 1) { yield t.start; return; }
+    const lastDay = t => (t.repeat === 'none' || t.endless ? '9999-12-31' : t.end);
 
+    // 회차 시작일을 차례로 내놓는다 (종료일까지)
+    function* starts(t) {
+        if (t.repeat === 'none') { yield t.start; return; }
+        const end = lastDay(t);
         if (t.repeat === 'daily') {
-            for (let d = t.start; n < total && n < LIMIT; d = addDays(d, 1)) yield* give(d);
+            for (let d = t.start, i = 0; d <= end && i < LIMIT; d = addDays(d, 1), i++) yield d;
             return;
         }
         if (t.repeat === 'weekly') {
             const days = t.weekdays.length ? t.weekdays : [weekday(t.start)];
-            for (let d = t.start, i = 0; n < total && i < LIMIT * 7; d = addDays(d, 1), i++) {
-                if (days.includes(weekday(d))) yield* give(d);
+            for (let d = t.start, i = 0; d <= end && i < LIMIT * 7; d = addDays(d, 1), i++) {
+                if (days.includes(weekday(d))) yield d;
             }
             return;
         }
         if (t.calendar === 'lunar' && lunar.supported()) {
-            yield* lunarStarts(t, give, () => n < total);
+            for (const d of lunarStarts(t)) {
+                if (d > end) return;
+                yield d;
+            }
             return;
         }
         const day = Number(t.start.slice(8));
         const step = t.repeat === 'monthly' ? 1 : 12;
-        for (let k = 0; n < total && k < LIMIT; k++) yield* give(addMonths(t.start, k * step, day));
+        for (let k = 0; k < LIMIT; k++) {
+            const d = addMonths(t.start, k * step, day);
+            if (d > end) return;
+            yield d;
+        }
     }
 
     // 음력 반복: 다음 회차 근처로 건너뛴 뒤 하루씩 넘기며 음력 날짜가 맞는 날을 찾는다
-    function* lunarStarts(t, give, more) {
+    function* lunarStarts(t) {
         const base = lunar.fromSolar(t.start);
         const matches = d => {
             const l = lunar.fromSolar(d);
             if (t.repeat === 'yearly' && (l.month !== base.month || l.leap)) return false;
             return l.day === base.day || (l.day < base.day && lunar.isMonthEnd(d));
         };
-        yield* give(t.start);
+        yield t.start;
         let d = t.start;
         const jump = t.repeat === 'monthly' ? 27 : 350;
-        for (let k = 0; more() && k < LIMIT; k++) {
+        for (let k = 0; k < LIMIT; k++) {
             d = addDays(d, jump);
             let guard = 0;
             while (!matches(d) && guard++ < 60) d = addDays(d, 1);
             if (guard > 60) return;
-            yield* give(d);
+            yield d;
         }
     }
 
     // 회차 시작일 목록 (until 까지 + 그 뒤 extra 개). 같은 할일은 기억해 둔다.
     const cache = new Map();
     function startsUntil(t, until, extra = 0) {
-        const key = [t.id, t.start, t.end, t.repeat, t.weekdays.join(''), t.count, t.calendar, until, extra].join('|');
+        const key = [t.id, t.start, t.end, t.repeat, t.weekdays.join(''), t.endless, t.calendar, until, extra].join('|');
         if (cache.has(key)) return cache.get(key);
         const list = [];
         let after = 0;
@@ -82,13 +90,18 @@ App.schedule = (() => {
         return list;
     }
 
-    const length = t => daysBetween(t.start, t.end);
+    // 회차의 결과: 'done' | 'missed' | ''
+    function resultOf(t, start) {
+        if (t.missed && t.missed[start]) return 'missed';
+        if (t.done && t.done[start]) return 'done';
+        return '';
+    }
 
     function occurrence(t, start, now = today()) {
-        const end = addDays(start, length(t));
-        const done = Boolean(t.done[start]);
-        const status = done ? 'done' : now < start ? 'before' : now > end ? 'late' : 'doing';
-        return { todo: t, start, end, done, status };
+        const end = t.repeat === 'none' ? t.end : start;
+        const result = resultOf(t, start);
+        const status = result || (now < start ? 'before' : now > end ? 'late' : 'doing');
+        return { todo: t, start, end, result, done: result === 'done', missed: result === 'missed', status };
     }
 
     // until 까지 시작하는 회차들
@@ -107,38 +120,44 @@ App.schedule = (() => {
     }
 
     // 할일 하나의 지금 상태
-    //   오늘이 걸친 회차가 있으면 → 그 회차가 완료면 완료, 아니면 진행
-    //   없으면 → 지난 회차를 못 했으면 지연, 다음 회차가 있으면 진행전, 다 끝났으면 완료
-    // focus: 목록에서 체크할 회차, missed: 못 한 지난 회차 수
+    //   오늘이 걸친 회차가 있으면 → 그 회차의 결과(완료/미완료), 없으면 진행
+    //   없으면 → 결과 없이 지난 회차가 있으면 지연, 다음 회차가 있으면 진행전, 다 끝났으면 마지막 결과
+    // focus: 목록에서 결과를 표시할 회차, overdue: 결과 없이 지난 회차 수
     function stateOf(t, now = today()) {
         const list = occurrences(t, now, 1, now);
         const past = list.filter(o => o.end < now);
         const covering = list.filter(o => o.start <= now && o.end >= now);
         const next = list.find(o => o.start > now) || null;
-        const missed = past.filter(o => !o.done).length;
-        const doneCount = list.filter(o => o.done && o.start <= now).length;
+        const open = past.filter(o => !o.result);
         let focus;
-        if (covering.length) focus = covering.find(o => !o.done) || covering[covering.length - 1];
-        else if (past.length && !past[past.length - 1].done) focus = past[past.length - 1];
+        if (covering.length) focus = covering.find(o => !o.result) || covering[covering.length - 1];
+        else if (open.length) focus = open[open.length - 1];
         else focus = next || past[past.length - 1] || list[0];
-        const total = t.count || null;
-        return { status: focus.status, focus, next, missed, doneCount, total };
+        const started = list.filter(o => o.start <= now);
+        return {
+            status: focus.status,
+            focus,
+            next,
+            overdue: open.length,
+            doneCount: started.filter(o => o.done).length,
+            missedCount: started.filter(o => o.missed).length
+        };
     }
 
-    // "매주 월·수·금 · 10회 · 음력"
+    // "매주 월·수·금 · ~2026.12.31", "반복 없음"
     function repeatText(t) {
-        if (t.count === 1) return '한 번';
+        if (t.repeat === 'none') return '반복 없음';
         let text = REPEAT[t.repeat];
         if (t.repeat === 'weekly') {
             const days = t.weekdays.length ? t.weekdays : [weekday(t.start)];
             text += ' ' + days.map(d => WEEKDAYS[d]).join('·');
         }
         if (t.calendar === 'lunar' && ['monthly', 'yearly'].includes(t.repeat)) text += ' (음력)';
-        return `${text} · ${t.count ? `${t.count}회` : '계속'}`;
+        return `${text} · ${t.endless ? '계속' : `~${formatDate(t.end)}`}`;
     }
 
     return {
         STATUS, STATUS_ORDER, REPEAT, occurrence, occurrences, occurrencesOn, occurrencesIn,
-        stateOf, repeatText, startsUntil
+        stateOf, repeatText, startsUntil, resultOf
     };
 })();
