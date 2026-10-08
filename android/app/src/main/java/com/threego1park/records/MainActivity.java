@@ -91,8 +91,17 @@ public class MainActivity extends Activity {
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
                 fileCallback = callback;
+                // 갤탭은 .json 파일을 "JSON 형식"으로 알아보지 못해 형식으로 거르면 파일이 흐리게 나와 고를 수 없다.
+                // 그래서 사진을 고를 때만 사진으로 거르고, 나머지(백업 파일)는 모든 파일을 보여 준다.
+                boolean images = false;
+                for (String type : params.getAcceptTypes()) {
+                    if (type != null && type.startsWith("image")) images = true;
+                }
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType(images ? "image/*" : "*/*");
                 try {
-                    startActivityForResult(params.createIntent(), REQUEST_FILE);
+                    startActivityForResult(Intent.createChooser(intent, images ? "사진 고르기" : "백업 파일 고르기"), REQUEST_FILE);
                 } catch (Exception e) {
                     fileCallback = null;
                     return false;
