@@ -5,7 +5,7 @@
 
     function render(el, ctx) {
         const { escapeHtml, today, formatDay, isDate } = App.util;
-        const { toast, statusBadge, checkButton, bindChecks, confirmDialog, highlight, icon } = App.ui;
+        const { toast, statusBadge, confirmDialog, highlight } = App.ui;
         const store = App.store;
         const sch = App.schedule;
         const moods = App.moods;
@@ -55,90 +55,89 @@
         const $ = sel => el.querySelector(sel);
         const dateInput = $('#date');
 
-        // 일기에 넣으려고 고른 할일 회차 ("할일id|회차 시작일")
-        const picked = new Set();
+        // 그날 할일: 완료 / 미완료만 보여 주고, 누르면 일기 맨 앞에 넣는다 (다시 누르면 뺀다).
+        // 넣었는지는 일기 글에 그 줄이 있는지로 판단한다 (직접 지워도 맞게 보인다).
         let shown = [];
-        const keyOf = o => `${o.todo.id}|${o.start}`;
+        const doneOf = o => o.done;
+        const lineOf = o => (doneOf(o) ? `✓ ${o.todo.title} (완료)` : `✕ ${o.todo.title} (미완료)`);
+        // 예전 모양의 줄도 같은 할일로 본다 (✓ 제목 / ✕ 제목 (미완료) / · 제목 (상태))
+        const isLineOf = (line, o) => {
+            const t = o.todo.title;
+            return line === `✓ ${t}` || line === `✓ ${t} (완료)` || line === `✕ ${t} (미완료)` || line.startsWith(`· ${t} (`);
+        };
+        const isTodoLine = line => /^(✓|✕|·) /.test(line);
+        // 일기 맨 앞의 할일 줄 묶음과 나머지 글로 나눈다
+        function splitContent(text) {
+            const lines = text.split('\n');
+            let n = 0;
+            while (n < lines.length && isTodoLine(lines[n])) n++;
+            return { head: lines.slice(0, n), rest: lines.slice(n).join('\n').replace(/^\n+/, '') };
+        }
+        const included = o => splitContent($('#content').value).head.some(line => isLineOf(line, o));
 
-        // 그날 할일 요약: 상태별 개수 + 목록 (체크로 바로 완료 표시, 이름을 눌러 일기에 넣을 할일 고르기)
         function renderSummary() {
             const d = dateInput.value;
             const lunarText = App.lunar.label(d);
             $('#date-label').textContent = `${formatDay(d)}${lunarText ? ` · ${lunarText}` : ''}`;
             const list = [];
             store.todos().forEach(t => sch.occurrencesOn(t, d).forEach(o => list.push(o)));
-            const order = s => sch.STATUS_ORDER.indexOf(s);
-            list.sort((a, b) => order(a.status) - order(b.status) || a.todo.title.localeCompare(b.todo.title));
-            const counts = { doing: 0, late: 0, before: 0, done: 0, missed: 0 };
-            list.forEach(o => { counts[o.status]++; });
-            const percent = list.length ? Math.round(counts.done / list.length * 100) : 0;
+            list.sort((a, b) => Number(doneOf(b)) - Number(doneOf(a)) || a.todo.title.localeCompare(b.todo.title));
             shown = list;
-            [...picked].forEach(k => { if (!list.some(o => keyOf(o) === k)) picked.delete(k); });
+            const done = list.filter(doneOf).length;
+            const percent = list.length ? Math.round(done / list.length * 100) : 0;
+            const allIn = list.length > 0 && list.every(included);
 
             $('#todo-summary').innerHTML = list.length
                 ? `<div class="summary-line">
                         <h3>이 날의 할일 <span class="count-badge">${list.length}개</span></h3>
-                        <div class="status-row">${sch.STATUS_ORDER.filter(s => counts[s]).map(s => `${statusBadge(s)} <b>${counts[s]}</b>`).join(' ')}</div>
+                        <div class="status-row">${statusBadge('done')} <b>${done}</b> ${statusBadge('missed')} <b>${list.length - done}</b></div>
                         ${App.ui.progressBar(percent, `완료 ${percent}%`)}
                    </div>
                    <div class="pick-bar">
-                        <p class="hint small">할일 이름을 눌러 고른(◯→✓) 뒤 <b>일기 맨 앞에 넣기</b>를 누르세요. 왼쪽 네모는 완료 표시예요.</p>
-                        <button id="pick-all" class="btn btn-small btn-outline" type="button">${picked.size === list.length ? '모두 해제' : '모두 고르기'}</button>
-                        <button id="pick-insert" class="btn btn-small" type="button" ${picked.size ? '' : 'disabled'}>${icon('pen')} 일기 맨 앞에 넣기${picked.size ? ` (${picked.size})` : ''}</button>
+                        <p class="hint small">할일을 누르면 일기 맨 앞에 넣고, 다시 누르면 빼요.</p>
+                        <button id="pick-all" class="btn btn-small btn-outline" type="button">${allIn ? '모두 빼기' : '모두 넣기'}</button>
                    </div>
-                   <ol class="summary-list">${list.map(o => {
-                        const on = picked.has(keyOf(o));
+                   <ol class="summary-list">${list.map((o, i) => {
+                        const on = included(o);
                         return `
                         <li class="summary-item ${on ? 'is-picked' : ''}">
-                            ${o.start <= today() ? checkButton(o) : '<span class="todo-check is-waiting" aria-hidden="true"></span>'}
-                            <button type="button" class="pick-todo" data-pick="${keyOf(o)}" aria-pressed="${on}">
+                            <button type="button" class="pick-todo" data-pick="${i}" aria-pressed="${on}">
                                 <span class="pick-box" aria-hidden="true">${on ? '✓' : ''}</span>
-                                <span class="${o.result ? 'is-done-text' : ''}">${escapeHtml(o.todo.title)}</span>
+                                <span>${escapeHtml(o.todo.title)}</span>
                             </button>
-                            ${statusBadge(o.status)}
+                            ${statusBadge(doneOf(o) ? 'done' : 'missed')}
                         </li>`;
                    }).join('')}</ol>`
                 : `<p class="hint">이 날 할일이 없어요. <a class="text-link" href="#/todos/new?date=${d}">+ 할일 등록</a></p>`;
         }
 
-        // 고른 할일을 일기 맨 앞에 넣는다. 이미 일기에 있는 줄은 다시 넣지 않는다. (저장은 "일기 저장"을 눌러야 함)
-        function insertPicked() {
+        // 할일 줄을 넣거나 뺀다 (저장은 "일기 저장"을 눌러야 함)
+        function setIncluded(items, on) {
             const textarea = $('#content');
-            const current = textarea.value;
-            const lines = shown.filter(o => picked.has(keyOf(o)))
-                .map(o => (o.done ? `✓ ${o.todo.title}` : o.missed ? `✕ ${o.todo.title} (미완료)` : `· ${o.todo.title} (${sch.STATUS[o.status]})`))
-                .filter(line => !current.split('\n').includes(line));
-            picked.clear();
-            if (!lines.length) {
-                toast('고른 할일은 이미 일기에 있어요.');
-                renderSummary();
-                return;
-            }
-            const head = lines.join('\n');
-            textarea.value = current.trim() ? `${head}\n\n${current}` : `${head}\n`;
+            const { head, rest } = splitContent(textarea.value);
+            let next = head.filter(line => !items.some(o => isLineOf(line, o)));
+            if (on) next = next.concat(items.map(lineOf));
+            textarea.value = next.length ? `${next.join('\n')}\n\n${rest}` : rest;
             renderSummary();
             renderLength();
-            textarea.focus();
-            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-            textarea.scrollTop = 0;
-            toast(`할일 ${lines.length}개를 일기 맨 앞에 넣었어요. "일기 저장"을 눌러야 저장돼요.`);
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));   // 쓰던 글 임시 보관
         }
 
         $('#todo-summary').addEventListener('click', event => {
             const pick = event.target.closest('[data-pick]');
             if (pick) {
-                if (picked.has(pick.dataset.pick)) picked.delete(pick.dataset.pick);
-                else picked.add(pick.dataset.pick);
-                renderSummary();
+                const o = shown[Number(pick.dataset.pick)];
+                if (!o) return;
+                const on = !included(o);
+                setIncluded([o], on);
+                toast(on ? `'${o.todo.title}'을(를) 일기에 넣었어요.` : `'${o.todo.title}'을(를) 일기에서 뺐어요.`);
                 return;
             }
             if (event.target.closest('#pick-all')) {
-                if (picked.size === shown.length) picked.clear();
-                else shown.forEach(o => picked.add(keyOf(o)));
-                renderSummary();
-                return;
+                const on = !shown.every(included);
+                setIncluded(shown, on);
+                toast(on ? `할일 ${shown.length}개를 일기에 넣었어요.` : '할일을 일기에서 모두 뺐어요.');
             }
-            if (event.target.closest('#pick-insert')) insertPicked();
         });
 
         // 쓰던 글 임시 보관: 저장하지 않고 화면을 벗어나거나 앱이 닫혀도 다음에 되살린다
@@ -212,8 +211,7 @@
             dateInput.dataset.prev = d;
             renderSummary();
         });
-        $('#content').addEventListener('input', renderLength);
-        bindChecks($('#todo-summary'), renderSummary);
+        $('#content').addEventListener('input', () => { renderLength(); renderSummary(); });
 
         $('#form').addEventListener('submit', async event => {
             event.preventDefault();
