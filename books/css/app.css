@@ -507,6 +507,8 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
 .native-text { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .native-text strong { font-size: 19px; }
 
+.picked-file { padding: 10px 14px; border-radius: 12px; background: var(--bg); font-size: 16px; word-break: break-all; }
+
 /* 5. 좁은 화면 (세로로 든 탭) ----------------------------------------------- */
 @media (max-width: 999px) {
     .page { padding: 20px 24px 40px; }

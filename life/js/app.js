@@ -15,7 +15,9 @@ function refreshIfChanged() {
     if (!App.store.sync()) return;
     // 입력하는 중이면 쓰던 글이 지워지지 않게 화면은 그대로 둔다 (저장할 때 최신 기록에 반영됨)
     const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-    if (!typing) App.router.render();
+    // 복원 화면을 보고 있거나 확인 창이 떠 있으면 화면을 바꾸지 않는다
+    const busy = document.querySelector('.restore-plan:not([hidden]), dialog[open]');
+    if (!typing && !busy) App.router.render();
 }
 window.addEventListener('storage', event => {
     if (event.key === null || event.key === 'dailylife.data') refreshIfChanged();

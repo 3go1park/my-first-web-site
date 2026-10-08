@@ -567,11 +567,15 @@ App.folderBackup = (() => {
         if (!raw) return null;
         try { return JSON.parse(raw); } catch (err) { return { error: '고른 파일을 읽지 못했어요' }; }
     }
-    function pickTextFile() {
+    // keepKey 를 주면 받은 파일을 그 이름으로 sessionStorage 에 바로 남긴다 (화면이 다시 그려져도 쓰도록)
+    function pickTextFile(keepKey) {
         return new Promise((resolve, reject) => {
             window.__onNativeFile = () => {
                 window.__onNativeFile = null;
                 const picked = readPicked();
+                if (keepKey && picked && picked.text) {
+                    try { sessionStorage.setItem(keepKey, JSON.stringify({ name: picked.name, text: picked.text })); } catch (err) { /* 무시 */ }
+                }
                 if (!picked) return reject(new Error('파일을 받지 못했어요. 다시 골라 주세요'));
                 if (picked.cancel) {
                     const err = new Error('취소');

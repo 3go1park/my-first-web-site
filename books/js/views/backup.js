@@ -200,32 +200,58 @@ App.route('/backup', {
         });
 
 
-        // 안드로이드 앱 안에서는 앱이 직접 파일을 골라 읽어 준다
+        // 안드로이드 앱 안에서는 앱이 직접 파일을 골라 읽어 준다.
+        // 고른 파일은 복원하거나 다른 파일을 고를 때까지 sessionStorage 에 두어,
+        // 앱으로 돌아오며 화면이 다시 그려져도 고른 파일과 복원 화면을 다시 보여 준다.
         const nativeFiles = App.folderBackup && App.folderBackup.canPickText();
+        const PICKED_KEY = 'restore.picked';
         const failRestore = t => { message.textContent = t; message.hidden = false; };
-        function planFromText(text) {
+        function showPicked(picked) {
+            let line = el.querySelector('#picked-file');
+            if (!line) {
+                line = document.createElement('p');
+                line.id = 'picked-file';
+                line.className = 'picked-file';
+                el.querySelector('.file-drop').after(line);
+            }
+            const kb = Math.max(1, Math.round((picked.text || '').length / 1024));
+            line.innerHTML = `고른 파일: <b>${App.util.escapeHtml(picked.name || '이름 없음')}</b> (${kb}KB)`;
+        }
+        function planFromPicked(picked) {
             message.hidden = true;
+            showPicked(picked);
             try {
-                showPlan(text, failRestore);
-                if (!planBox.hidden) planBox.scrollIntoView({ block: 'center' });
+                showPlan(picked.text, failRestore);
             } catch (err) {
                 failRestore(`복원 화면을 열지 못했어요: ${err.message}`);
             }
+            const target = planBox.hidden ? message : planBox;
+            if (!target.hidden) requestAnimationFrame(() => target.scrollIntoView({ block: 'center' }));
         }
+        function keepPicked(picked) {
+            try { sessionStorage.setItem(PICKED_KEY, JSON.stringify({ name: picked.name, text: picked.text })); } catch (err) { /* 무시 */ }
+        }
+        // 복원(합치기·바꾸기)을 누르면 고른 파일을 잊는다
+        planBox.addEventListener('click', event => {
+            if (event.target.closest('[data-action]')) sessionStorage.removeItem(PICKED_KEY);
+        }, true);
         if (nativeFiles) {
             el.querySelector('.file-drop').addEventListener('click', async event => {
                 event.preventDefault();
                 try {
-                    const picked = await App.folderBackup.pickTextFile();
-                    App.ui.toast(`${picked.name || '파일'}을(를) 읽었어요.`);
-                    planFromText(picked.text);
+                    const picked = await App.folderBackup.pickTextFile(PICKED_KEY);
+                    planFromPicked(picked);
                 } catch (err) {
                     if (err.name !== 'AbortError') failRestore(err.message);
                 }
             });
             const pending = App.folderBackup.takePendingFile();
-            if (pending) planFromText(pending.text);
+            if (pending) keepPicked(pending);
+            let kept = null;
+            try { kept = JSON.parse(sessionStorage.getItem(PICKED_KEY) || 'null'); } catch (err) { kept = null; }
+            if (kept && kept.text) planFromPicked(kept);
         }
+
         renderSummary();
     }
 });
