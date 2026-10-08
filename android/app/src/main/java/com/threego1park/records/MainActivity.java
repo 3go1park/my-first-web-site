@@ -26,6 +26,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -40,6 +43,7 @@ public class MainActivity extends Activity {
     private static final String START_URL = "https://" + HOST + "/assets/index.html";
     private static final int REQUEST_FILE = 1;
     private static final int REQUEST_FOLDER = 2;
+    private static final int REQUEST_TEXT = 3;
 
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
@@ -138,6 +142,32 @@ public class MainActivity extends Activity {
             }
             return;
         }
+        if (requestCode == REQUEST_TEXT) {
+            // 고른 파일을 앱이 직접 읽어 임시 파일에 두고 웹앱에 알린다.
+            // (고르는 동안 앱이 다시 시작되어도 웹앱이 다음에 열릴 때 가져갈 수 있다)
+            JSONObject picked = new JSONObject();
+            try {
+                if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                    Uri uri = data.getData();
+                    DocumentFile file = DocumentFile.fromSingleUri(this, uri);
+                    picked.put("name", file == null || file.getName() == null ? "" : file.getName());
+                    try (InputStream in = getContentResolver().openInputStream(uri)) {
+                        picked.put("text", in == null ? "" : readAll(in));
+                    }
+                } else {
+                    picked.put("cancel", true);
+                }
+            } catch (Exception e) {
+                try { picked.put("error", "파일을 읽지 못했어요: " + e.getMessage()); } catch (Exception ignored) { }
+            }
+            try (FileOutputStream out = new FileOutputStream(new File(getCacheDir(), "picked.json"))) {
+                out.write(picked.toString().getBytes(StandardCharsets.UTF_8));
+            } catch (Exception ignored) {
+                // 못 남기면 웹앱이 "파일을 받지 못했어요"를 보여 준다
+            }
+            web.evaluateJavascript("window.__onNativeFile && window.__onNativeFile()", null);
+            return;
+        }
         if (requestCode == REQUEST_FOLDER) {
             String name = "";
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
@@ -196,6 +226,35 @@ public class MainActivity extends Activity {
                     web.evaluateJavascript("window.__onNativeFolder && window.__onNativeFolder(\"\")", null);
                 }
             });
+        }
+
+        /** 글자 파일(백업 .json, 책 목록 .csv) 고르기. 결과는 window.__onNativeFile() → takePickedFile() */
+        @JavascriptInterface
+        public void pickTextFile() {
+            runOnUiThread(() -> {
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("*/*");
+                try {
+                    startActivityForResult(intent, REQUEST_TEXT);
+                } catch (Exception e) {
+                    web.evaluateJavascript("window.__onNativeFile && window.__onNativeFile()", null);
+                }
+            });
+        }
+
+        /** 마지막으로 고른 파일 {name, text} 또는 {cancel} / {error} (JSON). 없으면 "". 한 번 가져가면 지운다 */
+        @JavascriptInterface
+        public String takePickedFile() {
+            File file = new File(getCacheDir(), "picked.json");
+            if (!file.exists()) return "";
+            try (InputStream in = new FileInputStream(file)) {
+                return readAll(in);
+            } catch (Exception e) {
+                return "";
+            } finally {
+                file.delete();
+            }
         }
 
         @JavascriptInterface
