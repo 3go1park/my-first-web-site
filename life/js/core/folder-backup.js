@@ -560,5 +560,36 @@ App.folderBackup = (() => {
 
     const isNative = () => Boolean(bridge);
 
-    return { init, schedule, backupNow, supported, connected, status, summary, onChange, renderCard, renderNativePrompt, saveFile, isNative };
+    // 안드로이드 앱이 직접 글자 파일을 고르고 읽어 준다 (웹 화면의 파일 고르기가 갤탭에서 잘 안 되어서)
+    const canPickText = () => Boolean(bridge && typeof bridge.pickTextFile === 'function');
+    function readPicked() {
+        const raw = bridge.takePickedFile();
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch (err) { return { error: '고른 파일을 읽지 못했어요' }; }
+    }
+    function pickTextFile() {
+        return new Promise((resolve, reject) => {
+            window.__onNativeFile = () => {
+                window.__onNativeFile = null;
+                const picked = readPicked();
+                if (!picked) return reject(new Error('파일을 받지 못했어요. 다시 골라 주세요'));
+                if (picked.cancel) {
+                    const err = new Error('취소');
+                    err.name = 'AbortError';
+                    return reject(err);
+                }
+                if (picked.error) return reject(new Error(picked.error));
+                return resolve(picked);
+            };
+            bridge.pickTextFile();
+        });
+    }
+    // 파일을 고르는 동안 앱이 다시 시작된 경우: 화면이 열릴 때 남아 있는 파일을 가져간다
+    function takePendingFile() {
+        if (!canPickText()) return null;
+        const picked = readPicked();
+        return picked && picked.text ? picked : null;
+    }
+
+    return { init, schedule, backupNow, supported, connected, status, summary, onChange, renderCard, renderNativePrompt, saveFile, isNative, canPickText, pickTextFile, takePendingFile };
 })();

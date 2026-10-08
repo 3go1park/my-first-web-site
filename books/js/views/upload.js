@@ -94,6 +94,37 @@ App.route('/books/upload', {
             };
         }
 
+        // CSV 글자를 읽어 업로드 계획을 보여 준다
+        function planFromText(text) {
+            message.hidden = true;
+            planBox.hidden = true;
+            try {
+                const rows = parseCsv(text);
+                if (rows.length < 2) throw new Error('책 정보가 없어요. 둘째 줄부터 책을 채워 주세요.');
+                const { books, skipped } = toRows(rows);
+                if (!books.length) throw new Error('올바른 책 정보가 한 권도 없어요.');
+                showPlan(store.planImport(books), skipped);
+            } catch (err) {
+                message.textContent = err.message;
+                message.hidden = false;
+            }
+        }
+
+        // 안드로이드 앱 안에서는 앱이 직접 파일을 골라 읽어 준다
+        if (App.folderBackup && App.folderBackup.canPickText()) {
+            el.querySelector('.file-drop').addEventListener('click', async event => {
+                event.preventDefault();
+                try {
+                    planFromText((await App.folderBackup.pickTextFile()).text);
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        message.textContent = err.message;
+                        message.hidden = false;
+                    }
+                }
+            });
+        }
+
         input.addEventListener('change', async () => {
             const file = input.files[0];
             message.hidden = true;

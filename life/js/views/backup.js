@@ -238,6 +238,33 @@ App.route('/backup', {
             }
         });
 
+
+        // 안드로이드 앱 안에서는 앱이 직접 파일을 골라 읽어 준다
+        const nativeFiles = App.folderBackup && App.folderBackup.canPickText();
+        const failRestore = t => { message.textContent = t; message.hidden = false; };
+        function planFromText(text) {
+            message.hidden = true;
+            try {
+                showPlan(text, failRestore);
+                if (!planBox.hidden) planBox.scrollIntoView({ block: 'center' });
+            } catch (err) {
+                failRestore(`복원 화면을 열지 못했어요: ${err.message}`);
+            }
+        }
+        if (nativeFiles) {
+            el.querySelector('.file-drop').addEventListener('click', async event => {
+                event.preventDefault();
+                try {
+                    const picked = await App.folderBackup.pickTextFile();
+                    App.ui.toast(`${picked.name || '파일'}을(를) 읽었어요.`);
+                    planFromText(picked.text);
+                } catch (err) {
+                    if (err.name !== 'AbortError') failRestore(err.message);
+                }
+            });
+            const pending = App.folderBackup.takePendingFile();
+            if (pending) planFromText(pending.text);
+        }
         renderSummary();
     }
 });
