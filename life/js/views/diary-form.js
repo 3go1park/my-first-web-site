@@ -26,7 +26,12 @@
         el.innerHTML = `
             <section class="card diary-top">
                 <div class="section-head">
-                    <label class="field date-field">일자 <input id="date" type="date" value="${date}" max="9999-12-31"></label>
+                    <div class="date-pick">
+                        <button id="day-prev" class="btn btn-small btn-outline" type="button" aria-label="전날">‹ 전날</button>
+                        <label class="field date-field">일자 <input id="date" type="date" value="${date}" max="9999-12-31"></label>
+                        <button id="day-next" class="btn btn-small btn-outline" type="button" aria-label="다음날">다음날 ›</button>
+                        <span class="diary-mode ${old ? 'is-edit' : 'is-new'}">${old ? '쓴 일기 고치기' : '새 일기'}</span>
+                    </div>
                     <p id="date-label" class="date-label"></p>
                 </div>
                 <div id="todo-summary"></div>
@@ -143,35 +148,48 @@
 
         // 쓰던 글 임시 보관: 저장하지 않고 화면을 벗어나거나 앱이 닫혀도 다음에 되살린다
         const DRAFT_KEY = 'dailylife.diaryDraft';
-        const draftId = old ? `id:${old.id}` : 'new';
+        // 새 일기는 날짜마다 따로 보관한다 (예전에 'new' 하나로 보관한 것도 같은 날짜면 되살린다)
+        const draftId = old ? `id:${old.id}` : `new:${date}`;
         const savedContent = old ? old.content : '';
         const savedMood = old ? old.mood || '' : '';
         const readDrafts = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || {}; } catch (err) { return {}; } };
         const writeDrafts = drafts => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts)); } catch (err) { /* 공간 부족 */ } };
         const currentMood = () => ($('#form').querySelector('[name="mood"]:checked') || {}).value || '';
-        let draftTimer = null;
+        let draftTimer = null;   // 임시 보관 대기 중이면 타이머 번호
         function keepDraft() {
             clearTimeout(draftTimer);
             draftTimer = setTimeout(() => {
                 const drafts = readDrafts();
                 const content = $('#content').value;
                 if (content.trim() === savedContent.trim() && currentMood() === savedMood) delete drafts[draftId];
-                else drafts[draftId] = { content, mood: currentMood(), date: dateInput.value, at: Date.now() };
+                else drafts[draftId] = { content, mood: currentMood(), date, at: Date.now() };
                 writeDrafts(drafts);
+                draftTimer = null;
             }, 400);
         }
         function dropDraft() {
             clearTimeout(draftTimer);
             const drafts = readDrafts();
             delete drafts[draftId];
+            if (!old && drafts.new && drafts.new.date === date) delete drafts.new;
             writeDrafts(drafts);
         }
-        const draft = readDrafts()[draftId];
+        // 기다리던 임시 보관을 바로 한다 (날짜를 옮기기 전에)
+        function flushDraft() {
+            if (draftTimer === null) return;
+            clearTimeout(draftTimer);
+            const drafts = readDrafts();
+            const content = $('#content').value;
+            if (content.trim() === savedContent.trim() && currentMood() === savedMood) delete drafts[draftId];
+            else drafts[draftId] = { content, mood: currentMood(), date, at: Date.now() };
+            writeDrafts(drafts);
+        }
+        const allDrafts = readDrafts();
+        const draft = allDrafts[draftId] || (!old && allDrafts.new && allDrafts.new.date === date ? allDrafts.new : null);
         if (draft && (draft.content.trim() !== savedContent.trim() || (draft.mood || '') !== savedMood)) {
             $('#content').value = draft.content;
             const radio = $('#form').querySelector(`[name="mood"][value="${draft.mood}"]`);
             if (radio) radio.checked = true;
-            if (!old && App.util.isDate(draft.date) && !store.diaryOn(draft.date)) dateInput.value = draft.date;
             $('#draft-note').hidden = false;
         }
         $('#draft-drop').addEventListener('click', () => {
@@ -191,27 +209,24 @@
             $('#length').textContent = n ? `${n.toLocaleString()}자` : '';
         }
 
-        dateInput.addEventListener('change', async () => {
-            const d = dateInput.value;
-            if (!isDate(d)) return;
-            const other = store.diaryOn(d);
-            if (!old && other) {
-                const typed = $('#content').value.trim();
-                const ok = !typed || await confirmDialog({
-                    title: '그날 일기가 이미 있어요',
-                    bodyHtml: `<p>${formatDay(d)} 일기를 열까요? 지금 쓰던 글은 저장되지 않아요.</p>`,
-                    confirmText: '그 일기 열기'
-                });
-                if (!ok) {
-                    dateInput.value = dateInput.dataset.prev || date;
-                    return;
-                }
-                location.replace(`#/diary/${other.id}/edit`);
-                return;
+        // 날짜를 바꾸면: 그날 일기가 있으면 그 일기를 고치고, 없으면 그날 새 일기를 쓴다.
+        // (지금 쓰던 글은 임시 보관되어, 이 날짜로 돌아오면 되살아난다)
+        const fromQuery = ctx.query.get('from') ? `from=${ctx.query.get('from')}` : '';
+        function openDate(d) {
+            if (!isDate(d) || d === date) return;
+            flushDraft();
+            const target = store.diaryOn(d);
+            if (target) {
+                location.replace(`#/diary/${target.id}/edit${fromQuery ? `?${fromQuery}` : ''}`);
+                toast(`${formatDay(d)} 일기를 열었어요.`, { next: true });
+            } else {
+                location.replace(`#/diary/new?date=${d}${fromQuery ? `&${fromQuery}` : ''}`);
+                toast(`${formatDay(d)} 새 일기를 써요.`, { next: true });
             }
-            dateInput.dataset.prev = d;
-            renderSummary();
-        });
+        }
+        dateInput.addEventListener('change', () => openDate(dateInput.value));
+        $('#day-prev').addEventListener('click', () => openDate(App.util.addDays(date, -1)));
+        $('#day-next').addEventListener('click', () => openDate(App.util.addDays(date, 1)));
         $('#content').addEventListener('input', () => { renderLength(); renderSummary(); });
 
         $('#form').addEventListener('submit', async event => {
