@@ -19,6 +19,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.core.content.FileProvider;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.webkit.WebViewAssetLoader;
 
@@ -47,6 +48,7 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
+    private Uri cameraUri;   // 카메라로 찍을 사진이 저장될 곳
     private SharedPreferences prefs;
 
     @Override
@@ -104,8 +106,17 @@ public class MainActivity extends Activity {
                 Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
                 intent.setType(images ? "image/*" : "*/*");
+                cameraUri = null;
+                Intent camera = images ? cameraIntent() : null;
                 try {
-                    startActivityForResult(Intent.createChooser(intent, images ? "사진 고르기" : "백업 파일 고르기"), REQUEST_FILE);
+                    if (camera != null && params.isCaptureEnabled()) {
+                        // "사진 찍기": 카메라를 바로 연다
+                        startActivityForResult(camera, REQUEST_FILE);
+                    } else {
+                        Intent chooser = Intent.createChooser(intent, images ? "사진 고르기" : "백업 파일 고르기");
+                        if (camera != null) chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] { camera });
+                        startActivityForResult(chooser, REQUEST_FILE);
+                    }
                 } catch (Exception e) {
                     fileCallback = null;
                     return false;
@@ -137,7 +148,12 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_FILE) {
             if (fileCallback != null) {
-                fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
+                Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                // 카메라로 찍었으면 (돌려받은 파일이 없으면) 찍은 사진을 넘긴다
+                if ((result == null || result.length == 0) && resultCode == RESULT_OK && cameraUri != null && photoTaken()) {
+                    result = new Uri[] { cameraUri };
+                }
+                fileCallback.onReceiveValue(result);
                 fileCallback = null;
             }
             return;
@@ -184,6 +200,33 @@ public class MainActivity extends Activity {
             }
             web.evaluateJavascript("window.__onNativeFolder && window.__onNativeFolder(" + JSONObject.quote(name) + ")", null);
         }
+    }
+
+    /** 카메라로 사진 찍기 (찍은 사진은 cameraUri 에 저장된다). 못 만들면 null */
+    private Intent cameraIntent() {
+        try {
+            File dir = new File(getCacheDir(), "scan");
+            if (!dir.exists() && !dir.mkdirs()) return null;
+            File[] old = dir.listFiles();
+            if (old != null) for (File f : old) f.delete();   // 지난 사진은 지운다
+            File photo = new File(dir, "photo-" + System.currentTimeMillis() + ".jpg");
+            cameraUri = FileProvider.getUriForFile(this, getPackageName() + ".files", photo);
+            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
+            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            return intent;
+        } catch (Exception e) {
+            cameraUri = null;
+            return null;
+        }
+    }
+
+    private boolean photoTaken() {
+        File dir = new File(getCacheDir(), "scan");
+        File[] files = dir.listFiles();
+        if (files == null) return false;
+        for (File f : files) if (f.length() > 0) return true;
+        return false;
     }
 
     /** 고른 폴더 (계속 허락이 남아 있을 때만) */

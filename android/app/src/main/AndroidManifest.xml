@@ -12,6 +12,17 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
+        <!-- 카메라 앱이 찍은 사진을 넘겨줄 자리 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- 화면을 돌려도 다시 시작하지 않게 해서 쓰던 글이 사라지지 않게 한다 -->
         <activity
             android:name=".MainActivity"
