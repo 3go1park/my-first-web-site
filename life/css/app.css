@@ -565,6 +565,11 @@ a.todo-row:active { background: var(--line); }
 .ring-value { font-size: 28px; font-weight: 800; fill: var(--ink); }
 .ring-label { font-size: 15px; font-weight: 700; fill: var(--muted); }
 
+.date-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.diary-mode { padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 800; }
+.diary-mode.is-new { background: var(--accent-soft); color: var(--accent); }
+.diary-mode.is-edit { background: var(--done-bg); color: var(--done-ink); }
+
 /* 5. 좁은 화면 (세로로 든 탭) ----------------------------------------------- */
 @media (max-width: 999px) {
     .page { padding: 20px 20px 40px; }
