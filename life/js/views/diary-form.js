@@ -42,9 +42,13 @@
                         ${moods.LIST.map(m => `<label class="seg seg-mood"><input type="radio" name="mood" value="${m.key}" ${old && old.mood === m.key ? 'checked' : ''}><span>${m.icon} ${m.label}</span></label>`).join('')}
                     </div>
                 </div>
-                <label class="field">일기
+                <div class="field">
+                    <div class="field-head">
+                        <label for="content">일기</label>
+                        <button id="scan" class="btn btn-small btn-outline" type="button">${App.ui.icon('camera')} 일기장 스캔</button>
+                    </div>
                     <textarea id="content" rows="12" placeholder="오늘 있었던 일, 느낀 점, 고마운 일을 적어 보세요.">${escapeHtml(old ? old.content : '')}</textarea>
-                </label>
+                </div>
                 <div class="form-meta">
                     <p id="draft-note" class="draft-note" hidden>저장하지 않고 나갔던 글을 되살렸어요.
                         <button id="draft-drop" class="btn-text" type="button">되살린 글 버리기</button></p>
@@ -228,6 +232,24 @@
         $('#day-prev').addEventListener('click', () => openDate(App.util.addDays(date, -1)));
         $('#day-next').addEventListener('click', () => openDate(App.util.addDays(date, 1)));
         $('#content').addEventListener('input', () => { renderLength(); renderSummary(); });
+
+        // 종이 일기장 스캔: 사진에서 글자를 읽어, 고친 뒤 일기 글 뒤에 이어서 넣는다
+        $('#scan').addEventListener('click', async () => {
+            if (!App.scan) return toast('스캔 기능을 불러오지 못했어요. 인터넷에 연결된 상태에서 다시 열어 주세요.');
+            const text = await App.scan.open({
+                title: '일기장 스캔',
+                intro: '종이 일기장 페이지를 찍으면 글자를 읽어 일기에 넣어 드려요. 사진은 이 기기 안에서만 처리해요.',
+                tip: '잘 읽히게 하려면: 페이지를 평평하게, 밝은 곳에서 그림자 없이, 글자가 화면을 가득 채우게 찍어 주세요. '
+                    + '손글씨는 또박또박 쓴 글일수록 잘 읽혀요. 읽은 글은 넣기 전에 고칠 수 있어요.',
+                insertLabel: '일기에 넣기'
+            });
+            if (!text) return;
+            const area = $('#content');
+            area.value = area.value.trim() ? `${area.value.replace(/\s+$/, '')}\n\n${text}` : text;
+            area.dispatchEvent(new Event('input', { bubbles: true }));   // 글자 수·임시 보관
+            area.focus();
+            toast('스캔한 글을 넣었어요. 저장하려면 "일기 저장"을 눌러 주세요.');
+        });
 
         $('#form').addEventListener('submit', async event => {
             event.preventDefault();
