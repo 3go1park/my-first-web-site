@@ -26,18 +26,6 @@ App.scan = (() => {
 
                 <section class="scan-step" data-step="pick">
                     <p class="hint">${text.intro}</p>
-                    <div class="scan-pick">
-                        <label class="scan-pick-button">
-                            <input type="file" accept="image/*" capture="environment" data-file>
-                            ${icon('camera')}<span>사진 찍기</span>
-                        </label>
-                        <label class="scan-pick-button">
-                            <input type="file" accept="image/*" data-file>
-                            ${icon('image')}<span>사진 고르기</span>
-                        </label>
-                    </div>
-                    <button type="button" class="btn btn-outline" data-use-photo hidden>방금 사진으로 다시 읽기</button>
-                    <p class="hint small">${text.tip}</p>
                     <div class="scan-engine">
                         <p class="scan-engine-title">글자 인식 방법</p>
                         <label class="scan-engine-option">
@@ -66,6 +54,18 @@ App.scan = (() => {
                             </details>
                         </div>
                     </div>
+                    <div class="scan-pick">
+                        <label class="scan-pick-button">
+                            <input type="file" accept="image/*" capture="environment" data-file>
+                            ${icon('camera')}<span>사진 찍기</span>
+                        </label>
+                        <label class="scan-pick-button">
+                            <input type="file" accept="image/*" data-file>
+                            ${icon('image')}<span>사진 고르기</span>
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-outline" data-use-photo hidden>방금 사진으로 다시 읽기</button>
+                    <p class="hint small">${text.tip}</p>
                 </section>
 
                 <section class="scan-step" data-step="crop" hidden>
@@ -86,6 +86,7 @@ App.scan = (() => {
 
                 <section class="scan-step" data-step="result" hidden>
                     <p class="hint">읽은 글자예요. 틀린 부분을 고친 뒤 넣어 주세요.</p>
+                    <p class="scan-engine-note" data-engine-note></p>
                     <textarea rows="9" data-result></textarea>
                     <p class="message error" data-error hidden></p>
                     <div class="button-row">
@@ -239,12 +240,14 @@ App.scan = (() => {
                         $('[data-progress]').style.width = `${percent}%`;
                     });
                     $('[data-result]').value = text;
+                    noteEngine(engine);
                     if (!text) {
                         $('[data-error]').textContent = '글자를 찾지 못했어요. 더 밝게, 글자가 크게 나오게 다시 찍어 보세요.';
                         $('[data-error]').hidden = false;
                     }
                 } catch (err) {
                     $('[data-result]').value = '';
+                    $('[data-engine-note]').textContent = '';
                     $('[data-error]').textContent = err.message || '글자를 읽지 못했어요.';
                     $('[data-error]').hidden = false;
                     $('[data-retry]').hidden = false;   // 같은 사진으로 다시 시도
@@ -252,6 +255,16 @@ App.scan = (() => {
                 }
                 show('result');
             });
+
+            // 어떤 방법으로 읽었는지 알려 주고, 기본 인식이면 Google 로 바꾸도록 권한다
+            function noteEngine(engine) {
+                const note = $('[data-engine-note]');
+                note.classList.toggle('warn', engine !== 'google');
+                note.textContent = engine === 'google'
+                    ? 'Google 손글씨 인식으로 읽었어요.'
+                    : '기본 인식으로 읽었어요. 기본 인식은 손글씨를 거의 못 읽어요. 아래 "인식 방법 바꾸기"에서 Google 손글씨 인식을 고르고 다시 읽어 보세요.';
+                $('[data-settings]').hidden = engine === 'google';
+            }
 
             // ---- 4) 넣기 / 다시 -------------------------------------------------
             $('[data-insert]').addEventListener('click', () => {

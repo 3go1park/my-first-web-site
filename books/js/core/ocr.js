@@ -18,9 +18,9 @@ App.ocr = (() => {
         try {
             const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
             const key = typeof saved.key === 'string' ? saved.key.trim() : '';
-            return { engine: saved.engine === 'google' ? 'google' : 'basic', key };
+            return { engine: saved.engine === 'basic' ? 'basic' : 'google', key };   // 따로 고르지 않으면 Google
         } catch {
-            return { engine: 'basic', key: '' };
+            return { engine: 'google', key: '' };
         }
     }
 
