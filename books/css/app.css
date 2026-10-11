@@ -291,6 +291,18 @@ a.book-row:active, a.reading-row:active { background: var(--line); }
 }
 .hint.small { font-size: 15px; }
 
+.scan-engine { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; }
+.scan-engine-title { margin: 0; font-weight: 700; }
+.scan-engine-option { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.scan-engine-option input { width: 22px; height: 22px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+.scan-engine-option span { display: flex; flex-direction: column; gap: 2px; }
+.scan-engine-option small { font-size: 14px; color: var(--muted); line-height: 1.5; }
+.scan-key { display: flex; flex-direction: column; gap: 8px; padding-left: 32px; }
+.scan-key-row { display: flex; gap: 8px; }
+.scan-key-row input { flex: 1; min-width: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--ink); font-size: 16px; font-family: inherit; }
+.scan-key-help summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.scan-key-help ol { margin: 8px 0 0; padding-left: 20px; font-size: 14px; line-height: 1.7; color: var(--muted); }
+
 /* 선택 삭제 */
 .select-bar {
     position: sticky; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 5;

@@ -10,7 +10,7 @@ App.scan = (() => {
     function open(options = {}) {
         const text = {
             title: '책 스캔',
-            intro: '읽은 책의 페이지를 찍으면 글자를 읽어 일지에 넣어 드려요. 사진은 이 탭 안에서만 처리해요.',
+            intro: '읽은 책의 페이지를 찍으면 글자를 읽어 일지에 넣어 드려요.',
             tip: '잘 읽히게 하려면: 페이지를 평평하게, 밝은 곳에서, 글자가 화면을 가득 채우게 찍어 주세요.',
             insertLabel: '일지에 넣기',
             ...options
@@ -36,7 +36,36 @@ App.scan = (() => {
                             ${icon('image')}<span>사진 고르기</span>
                         </label>
                     </div>
+                    <button type="button" class="btn btn-outline" data-use-photo hidden>방금 사진으로 다시 읽기</button>
                     <p class="hint small">${text.tip}</p>
+                    <div class="scan-engine">
+                        <p class="scan-engine-title">글자 인식 방법</p>
+                        <label class="scan-engine-option">
+                            <input type="radio" name="ocr-engine" value="google" data-engine>
+                            <span><b>Google 손글씨 인식 (추천)</b><small>손글씨 한글도 잘 읽어요. 사진이 Google 로 보내지고, Google Cloud API 키가 필요해요 (매달 1,000장 무료).</small></span>
+                        </label>
+                        <label class="scan-engine-option">
+                            <input type="radio" name="ocr-engine" value="basic" data-engine>
+                            <span><b>기본 (탭 안에서)</b><small>사진을 밖으로 보내지 않지만, 인쇄된 글자만 읽어요. 손글씨는 거의 못 읽어요.</small></span>
+                        </label>
+                        <div class="scan-key" data-key-area hidden>
+                            <p class="hint small" data-key-state></p>
+                            <div class="scan-key-row">
+                                <input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="API 키를 붙여 넣으세요 (AIza로 시작)" data-key>
+                                <button type="button" class="btn btn-outline" data-save-key>키 저장</button>
+                            </div>
+                            <details class="scan-key-help">
+                                <summary>API 키 만드는 법 (처음 한 번, 약 5분)</summary>
+                                <ol>
+                                    <li>console.cloud.google.com 에 구글 계정으로 들어가 새 프로젝트를 만들어요.</li>
+                                    <li>위쪽 검색창에 "Cloud Vision API"를 검색해서 <b>사용</b>을 눌러요. (결제 계정 연결을 물으면 연결해요. 매달 1,000장까지는 무료예요)</li>
+                                    <li>"API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → API 키"를 눌러요.</li>
+                                    <li>만든 키의 <b>API 제한사항</b>에서 "Cloud Vision API"만 고르고 저장해요. (다른 곳에 쓰이지 않게)</li>
+                                    <li>키(AIza…)를 복사해서 위 칸에 붙여 넣고 <b>키 저장</b>을 눌러요. 키는 이 탭에만 저장돼요.</li>
+                                </ol>
+                            </details>
+                        </div>
+                    </div>
                 </section>
 
                 <section class="scan-step" data-step="crop" hidden>
@@ -52,7 +81,7 @@ App.scan = (() => {
                 <section class="scan-step" data-step="reading" hidden>
                     <p class="scan-progress-step" data-progress-step>준비 중</p>
                     <div class="progress-track"><div class="progress-fill" data-progress style="width:0%"></div></div>
-                    <p class="hint small">처음 한 번은 인식 프로그램을 내려받느라 시간이 걸려요.</p>
+                    <p class="hint small" data-reading-hint></p>
                 </section>
 
                 <section class="scan-step" data-step="result" hidden>
@@ -62,6 +91,7 @@ App.scan = (() => {
                     <div class="button-row">
                         <button type="button" class="btn btn-outline" data-again>다른 사진</button>
                         <button type="button" class="btn btn-outline" data-retry hidden>다시 읽기</button>
+                        <button type="button" class="btn btn-outline" data-settings hidden>인식 방법 바꾸기</button>
                         <button type="button" class="btn btn-primary" data-insert>${text.insertLabel}</button>
                     </div>
                 </section>`;
@@ -74,6 +104,7 @@ App.scan = (() => {
             let selection = null;   // 원래 크기 기준 { x, y, w, h }
 
             function show(step) {
+                $('[data-use-photo]').hidden = !(step === 'pick' && image);
                 dialog.querySelectorAll('.scan-step').forEach(s => { s.hidden = s.dataset.step !== step; });
             }
 
@@ -82,6 +113,31 @@ App.scan = (() => {
                 dialog.remove();
                 resolve(value);
             }
+
+            // ---- 0) 인식 방법 / API 키 ----------------------------------------
+            function renderEngine() {
+                const { engine, key } = App.ocr.getSettings();
+                dialog.querySelectorAll('[data-engine]').forEach(r => { r.checked = r.value === engine; });
+                $('[data-key-area]').hidden = engine !== 'google';
+                $('[data-key-state]').textContent = key
+                    ? `저장된 키: ${key.slice(0, 6)}…${key.slice(-4)} (바꾸려면 새 키를 넣고 저장하세요)`
+                    : 'API 키를 넣어야 Google 손글씨 인식을 쓸 수 있어요.';
+                dialog.querySelector('.scan-key-help').open = !key;
+            }
+            dialog.querySelectorAll('[data-engine]').forEach(r => r.addEventListener('change', () => {
+                App.ocr.saveSettings({ engine: r.value });
+                renderEngine();
+            }));
+            $('[data-save-key]').addEventListener('click', () => {
+                const key = $('[data-key]').value.trim();
+                if (!key) return App.ui.toast('API 키를 붙여 넣어 주세요.');
+                App.ocr.saveSettings({ key, engine: 'google' });
+                $('[data-key]').value = '';
+                renderEngine();
+                App.ui.toast('API 키를 저장했어요.');
+            });
+            $('[data-use-photo]').addEventListener('click', () => show('crop'));
+            renderEngine();
 
             // ---- 1) 사진 고르기 --------------------------------------------
             dialog.querySelectorAll('[data-file]').forEach(input => input.addEventListener('change', () => {
@@ -145,8 +201,9 @@ App.scan = (() => {
                 $('[data-clear-box]').hidden = true;
             });
 
-            // 고른 부분을 잘라 흑백으로 바꾸고 크기를 맞춘다 (인식률을 높이려고)
-            function prepare() {
+            // 고른 부분을 잘라 크기를 맞춘다. 기본 인식은 흑백으로 바꿔야 잘 읽고,
+            // Google 은 원래 색 그대로가 더 잘 읽는다.
+            function prepare(engine) {
                 const area = selection || { x: 0, y: 0, w: image.naturalWidth, h: image.naturalHeight };
                 let scale = Math.min(1, MAX_SIDE / Math.max(area.w, area.h));
                 if (area.w * scale < MIN_WIDTH) scale = Math.min(3, MIN_WIDTH / area.w);
@@ -154,18 +211,30 @@ App.scan = (() => {
                 canvas.width = Math.round(area.w * scale);
                 canvas.height = Math.round(area.h * scale);
                 const g = canvas.getContext('2d', { willReadFrequently: true });
-                g.filter = 'grayscale(1) contrast(1.4)';
+                if (engine !== 'google') g.filter = 'grayscale(1) contrast(1.4)';
                 g.drawImage(image, area.x, area.y, area.w, area.h, 0, 0, canvas.width, canvas.height);
                 return canvas;
             }
 
             // ---- 3) 글자 읽기 ------------------------------------------------
             $('[data-read]').addEventListener('click', async () => {
+                const { engine, key } = App.ocr.getSettings();
+                if (engine === 'google' && !key) {
+                    show('pick');
+                    App.ui.toast('Google 손글씨 인식을 쓰려면 API 키를 먼저 저장해 주세요.');
+                    return;
+                }
+                $('[data-reading-hint]').textContent = engine === 'google'
+                    ? '사진을 Google 로 보내 글자를 읽고 있어요.'
+                    : '처음 한 번은 인식 프로그램을 내려받느라 시간이 걸려요.';
+                $('[data-progress-step]').textContent = '준비 중';
+                $('[data-progress]').style.width = '0%';
                 show('reading');
                 $('[data-error]').hidden = true;
                 $('[data-retry]').hidden = true;
+                $('[data-settings]').hidden = true;
                 try {
-                    const text = await App.ocr.recognize(prepare(), ({ step, percent }) => {
+                    const text = await App.ocr.recognize(prepare(engine), ({ step, percent }) => {
                         $('[data-progress-step]').textContent = `${step} ${percent}%`;
                         $('[data-progress]').style.width = `${percent}%`;
                     });
@@ -179,6 +248,7 @@ App.scan = (() => {
                     $('[data-error]').textContent = err.message || '글자를 읽지 못했어요.';
                     $('[data-error]').hidden = false;
                     $('[data-retry]').hidden = false;   // 같은 사진으로 다시 시도
+                    $('[data-settings]').hidden = false;
                 }
                 show('result');
             });
@@ -189,8 +259,10 @@ App.scan = (() => {
                 if (!text) return;
                 finish(text);
             });
-            dialog.querySelectorAll('[data-again]').forEach(b => b.addEventListener('click', () => show('pick')));
+            dialog.querySelectorAll('[data-again]').forEach(b => b.addEventListener('click', () => { renderEngine(); show('pick'); }));
             $('[data-retry]').addEventListener('click', () => show('crop'));
+            // 키를 고치거나 방법을 바꾼 뒤 같은 사진으로 다시 읽을 수 있게: 고르기 화면에서 사진을 그대로 둔다
+            $('[data-settings]').addEventListener('click', () => { renderEngine(); show('pick'); });
             $('[data-close]').addEventListener('click', () => finish(null));
             dialog.addEventListener('cancel', event => {
                 event.preventDefault();
