@@ -107,6 +107,27 @@ App.folderBackup = (() => {
         setTimeout(() => URL.revokeObjectURL(url), 2000);
         return true;
     }
+
+    // 글자가 아닌 파일(워드 등)을 "다운로드"에 저장. bytes 는 Uint8Array
+    function saveBinary(name, bytes, mime) {
+        if (bridge) {
+            if (typeof bridge.saveDownloadBase64 !== 'function') throw new Error('앱을 새 버전으로 업데이트해 주세요.');
+            let binary = '';
+            for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+            const result = bridge.saveDownloadBase64(name, mime, btoa(binary));
+            if (result !== 'ok') throw new Error(result.replace(/^\w+:/, ''));
+            return true;
+        }
+        const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        return true;
+    }
     const prefix = () => NAMES[appName] || appName;
 
     // ---- 상태 (앱마다) ---------------------------------------------------
@@ -595,5 +616,5 @@ App.folderBackup = (() => {
         return picked && picked.text ? picked : null;
     }
 
-    return { init, schedule, backupNow, supported, connected, status, summary, onChange, renderCard, renderNativePrompt, saveFile, isNative, canPickText, pickTextFile, takePendingFile };
+    return { init, schedule, backupNow, supported, connected, status, summary, onChange, renderCard, renderNativePrompt, saveFile, saveBinary, isNative, canPickText, pickTextFile, takePendingFile };
 })();

@@ -595,6 +595,8 @@ a.todo-row:active { background: var(--line); }
 }
 
 .scan-engine { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; }
+.scan-engine-note { margin: 0; font-size: 15px; color: var(--muted); }
+.scan-engine-note.warn { color: var(--danger, #c0392b); font-weight: 600; }
 .scan-engine-title { margin: 0; font-weight: 700; }
 .scan-engine-option { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
 .scan-engine-option input { width: 22px; height: 22px; margin-top: 2px; flex: none; accent-color: var(--accent); }

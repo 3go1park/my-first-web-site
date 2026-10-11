@@ -57,6 +57,7 @@ App.route('/diary', {
                         <option value="new">최신순</option>
                         <option value="old">오래된순</option>
                     </select>
+                    <button type="button" class="btn btn-small btn-outline" id="export-word" title="모든 일기를 워드 파일로 내려받아요">워드로 내려받기</button>
                     <a class="btn btn-small" href="#/diary/new">+ 일기 쓰기</a>
                 </div>
                 <div class="toolbar">
@@ -146,5 +147,29 @@ App.route('/diary', {
             renderList();
         }));
         renderList();
+
+        // 모든 일기를 날짜 순서대로 워드 파일 하나로 (보관용). 첫 줄은 날짜, 다음 줄부터 내용
+        $('#export-word').addEventListener('click', () => {
+            const all = store.diary().slice().reverse();
+            const longDate = date => {
+                const [y, m, d] = date.split('-').map(Number);
+                return `${y}년 ${m}월 ${d}일 ${WEEKDAYS[weekday(date)]}요일`;
+            };
+            const bytes = App.docx.build({
+                title: '하루 하루 삶의 기록 — 일기',
+                subtitle: `${longDate(all[0].date)} ~ ${longDate(all[all.length - 1].date)} · ${all.length}편`,
+                sections: all.map(d => ({
+                    heading: longDate(d.date),
+                    lines: d.content.replace(/\r/g, '').trim().replace(/\n{3,}/g, '\n\n').split('\n').map(line => line.trim())
+                }))
+            });
+            const name = `daily-life-diary-${now.replace(/-/g, '')}.docx`;   // 한글 파일 이름은 브라우저가 "download"로 바꿔 버린다
+            try {
+                App.folderBackup.saveBinary(name, bytes, App.docx.MIME);
+                App.ui.toast(`일기 ${all.length}편을 워드 파일로 저장했어요. "내 파일 → 다운로드"의 ${name}`);
+            } catch (err) {
+                App.ui.toast(`워드 파일을 저장하지 못했어요. ${err.message || ''}`);
+            }
+        });
     }
 });
