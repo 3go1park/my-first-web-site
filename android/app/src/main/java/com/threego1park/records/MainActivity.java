@@ -379,17 +379,31 @@ public class MainActivity extends Activity {
         /** "내 파일 → 다운로드" 에 파일로 저장. "ok" 또는 "error:…" */
         @JavascriptInterface
         public String saveDownload(String name, String text) {
+            return writeDownload(name, "application/json", text.getBytes(StandardCharsets.UTF_8));
+        }
+
+        // 워드 파일처럼 글자가 아닌 파일: 웹에서 base64 로 받아 "다운로드"에 저장
+        @JavascriptInterface
+        public String saveDownloadBase64(String name, String mime, String base64) {
+            try {
+                return writeDownload(name, mime, android.util.Base64.decode(base64, android.util.Base64.DEFAULT));
+            } catch (IllegalArgumentException e) {
+                return "error:파일 내용을 읽지 못했어요";
+            }
+        }
+
+        private String writeDownload(String name, String mime, byte[] bytes) {
             try {
                 ContentResolver resolver = getContentResolver();
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
-                values.put(MediaStore.MediaColumns.MIME_TYPE, "application/json");
+                values.put(MediaStore.MediaColumns.MIME_TYPE, mime);
                 values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
                 Uri uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
                 if (uri == null) return "error:파일을 만들지 못했어요";
                 try (OutputStream out = resolver.openOutputStream(uri, "w")) {
                     if (out == null) return "error:파일을 열지 못했어요";
-                    out.write(text.getBytes(StandardCharsets.UTF_8));
+                    out.write(bytes);
                 }
                 return "ok";
             } catch (Exception e) {
